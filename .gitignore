@@ -1,3 +1,5 @@
 node_modules/
 coverage/
 vitest.config.d.ts
+.gh
+.opencode/plugins/entire.ts
