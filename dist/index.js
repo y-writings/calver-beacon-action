@@ -19101,17 +19101,6 @@ function getInput(name, options) {
   }
   return val.trim();
 }
-function getBooleanInput(name, options) {
-  const trueValue = ["true", "True", "TRUE"];
-  const falseValue = ["false", "False", "FALSE"];
-  const val = getInput(name, options);
-  if (trueValue.includes(val))
-    return true;
-  if (falseValue.includes(val))
-    return false;
-  throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}
-Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
-}
 function setOutput(name, value) {
   const filePath = process.env["GITHUB_OUTPUT"] || "";
   if (filePath) {
@@ -19126,6 +19115,49 @@ function setFailed(message) {
 }
 function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+}
+
+// src/calver-tag.ts
+var CALVER_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
+function parseCalverDateParts(calverDate) {
+  const [yearText, monthText, dayText] = calverDate.split(".");
+  return {
+    year: Number.parseInt(yearText, 10),
+    month: Number.parseInt(monthText, 10),
+    day: Number.parseInt(dayText, 10)
+  };
+}
+function isValidCalendarDate(year, month, day) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return false;
+  }
+  const candidate = new Date(Date.UTC(year, month - 1, day));
+  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
+}
+function formatUtcDate(date) {
+  const year = date.getUTCFullYear().toString().padStart(4, "0");
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+  const day = date.getUTCDate().toString().padStart(2, "0");
+  return `${year}.${month}.${day}`;
+}
+function resolveCalverDate(calverDate, now = /* @__PURE__ */ new Date()) {
+  if (calverDate !== void 0 && calverDate !== "") {
+    return calverDate;
+  }
+  return formatUtcDate(now);
+}
+function validateCalverDate(calverDate) {
+  if (!CALVER_DATE_PATTERN.test(calverDate)) {
+    throw new Error("calver_date must use YYYY.MM.DD format");
+  }
+  const { year, month, day } = parseCalverDateParts(calverDate);
+  if (!isValidCalendarDate(year, month, day)) {
+    throw new Error("calver_date must be a real calendar date in YYYY.MM.DD format");
+  }
+}
+function buildCalverTag(calverDate) {
+  validateCalverDate(calverDate);
+  return `v${calverDate}`;
 }
 
 // src/github.ts
@@ -19181,6 +19213,12 @@ async function requestJson(context, path, init) {
 function encodeRefName(refName) {
   return refName.split("/").map((segment) => encodeURIComponent(segment)).join("/");
 }
+function tagNameFromRef(ref) {
+  return ref.startsWith("refs/tags/") ? ref.slice("refs/tags/".length) : ref;
+}
+function isCanonicalCalverTagName(tag) {
+  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
+}
 async function dereferenceRefTarget(context, response) {
   if (response.object.type === "commit") {
     return response.object.sha;
@@ -19232,6 +19270,31 @@ async function lookupTag(context, tag) {
     if (error2 instanceof GitHubApiError && error2.status === 403) {
       throw new Error(
         `GitHub API rejected tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error2.details}`
+      );
+    }
+    throw error2;
+  }
+}
+async function findLatestCalverTag(context) {
+  try {
+    const response = await requestJson(
+      context,
+      `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`
+    );
+    const latest = response.map((item) => ({ item, tag: tagNameFromRef(item.ref) })).filter(({ tag }) => isCanonicalCalverTagName(tag)).sort((a, b) => b.tag.localeCompare(a.tag))[0];
+    if (latest === void 0) {
+      return { exists: false };
+    }
+    return {
+      exists: true,
+      ref: latest.item.ref,
+      tag: latest.tag,
+      sha: await dereferenceRefTarget(context, latest.item)
+    };
+  } catch (error2) {
+    if (error2 instanceof GitHubApiError && error2.status === 403) {
+      throw new Error(
+        `GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error2.details}`
       );
     }
     throw error2;
@@ -19297,98 +19360,56 @@ async function createLightweightTag(context, tag, targetSha) {
 
 // src/inputs.ts
 function getInputs() {
-  const snapshotDate = getInput("snapshot_date").trim();
+  const calverDate = getInput("calver_date").trim();
   const githubToken = getInput("github_token").trim();
   const targetRef = getInput("target_ref").trim();
-  const targetSha = getInput("target_sha").trim();
   return {
-    snapshotDate: snapshotDate === "" ? void 0 : snapshotDate,
+    calverDate: calverDate === "" ? void 0 : calverDate,
     githubToken,
-    createIfMissing: getBooleanInput("create_if_missing"),
-    targetRef: targetRef === "" ? void 0 : targetRef,
-    targetSha: targetSha === "" ? void 0 : targetSha
+    targetRef: targetRef === "" ? void 0 : targetRef
   };
-}
-
-// src/snapshot-tag.ts
-var SNAPSHOT_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
-function parseSnapshotDateParts(snapshotDate) {
-  const [yearText, monthText, dayText] = snapshotDate.split(".");
-  return {
-    year: Number.parseInt(yearText, 10),
-    month: Number.parseInt(monthText, 10),
-    day: Number.parseInt(dayText, 10)
-  };
-}
-function isValidCalendarDate(year, month, day) {
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-    return false;
-  }
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  return candidate.getUTCFullYear() === year && candidate.getUTCMonth() === month - 1 && candidate.getUTCDate() === day;
-}
-function formatUtcDate(date) {
-  const year = date.getUTCFullYear().toString().padStart(4, "0");
-  const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
-  const day = date.getUTCDate().toString().padStart(2, "0");
-  return `${year}.${month}.${day}`;
-}
-function resolveSnapshotDate(snapshotDate, now = /* @__PURE__ */ new Date()) {
-  if (snapshotDate !== void 0 && snapshotDate !== "") {
-    return snapshotDate;
-  }
-  return formatUtcDate(now);
-}
-function validateSnapshotDate(snapshotDate) {
-  if (!SNAPSHOT_DATE_PATTERN.test(snapshotDate)) {
-    throw new Error("snapshot date must use YYYY.MM.DD format");
-  }
-  const { year, month, day } = parseSnapshotDateParts(snapshotDate);
-  if (!isValidCalendarDate(year, month, day)) {
-    throw new Error("snapshot date must be a real calendar date in YYYY.MM.DD format");
-  }
-}
-function buildSnapshotTag(snapshotDate) {
-  validateSnapshotDate(snapshotDate);
-  return `v${snapshotDate}`;
 }
 
 // src/main.ts
-function validateTargetInputs(targetRef, targetSha) {
-  if (targetRef !== void 0 && targetSha !== void 0) {
-    throw new Error("target_ref and target_sha are mutually exclusive");
+function requireTargetRef(targetRef) {
+  if (targetRef === void 0) {
+    throw new Error("target_ref is required");
   }
+  return targetRef;
+}
+function setCommonOutputs(tag, targetSha, previousTag, previousTagSha) {
+  setOutput("tag", tag);
+  setOutput("target_sha", targetSha);
+  setOutput("previous_tag", previousTag);
+  setOutput("previous_tag_sha", previousTagSha);
 }
 async function run() {
   const inputs = getInputs();
-  const snapshotDate = resolveSnapshotDate(inputs.snapshotDate);
+  const calverDate = resolveCalverDate(inputs.calverDate);
   if (inputs.githubToken === "") {
     throw new Error("github_token is required");
   }
-  validateTargetInputs(inputs.targetRef, inputs.targetSha);
-  validateSnapshotDate(snapshotDate);
-  const tag = buildSnapshotTag(snapshotDate);
+  const targetRef = requireTargetRef(inputs.targetRef);
+  validateCalverDate(calverDate);
+  const tag = buildCalverTag(calverDate);
   const apiContext = getApiContext(inputs.githubToken);
-  const existingTag = await lookupTag(apiContext, tag);
-  setOutput("tag", tag);
-  setOutput("tag_exists", existingTag.exists ? "true" : "false");
-  if (existingTag.exists) {
+  const targetSha = await resolveTargetSha(apiContext, targetRef);
+  const previous = await findLatestCalverTag(apiContext);
+  const previousTag = previous.exists ? previous.tag : "";
+  const previousTagSha = previous.exists ? previous.sha : "";
+  setCommonOutputs(tag, targetSha, previousTag, previousTagSha);
+  if (previous.exists && previous.sha === targetSha) {
     setOutput("created", "false");
-    setOutput("target_sha", existingTag.sha ?? "");
     return;
   }
-  if (!inputs.createIfMissing) {
-    setOutput("created", "false");
-    setOutput("target_sha", "");
-    return;
+  const existingToday = await lookupTag(apiContext, tag);
+  if (existingToday.exists && existingToday.sha !== targetSha) {
+    throw new Error(
+      `tag ${tag} already exists and points to ${existingToday.sha ?? "unknown"}, expected ${targetSha}. Create a manual same-day CalVer tag if another release is required.`
+    );
   }
-  const targetSha = inputs.targetSha ?? (inputs.targetRef === void 0 ? void 0 : await resolveTargetSha(apiContext, inputs.targetRef));
-  if (targetSha === void 0) {
-    throw new Error("target_ref or target_sha is required when create_if_missing is true");
-  }
-  const creationResult = await createLightweightTag(apiContext, tag, targetSha);
+  const creationResult = existingToday.exists ? { created: false, sha: targetSha } : await createLightweightTag(apiContext, tag, targetSha);
   setOutput("created", creationResult.created ? "true" : "false");
-  setOutput("target_sha", creationResult.sha);
 }
 
 // src/index.ts
