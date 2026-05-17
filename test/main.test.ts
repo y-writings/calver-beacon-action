@@ -24,14 +24,12 @@ describe('run', () => {
 
     coreMocks.getInput.mockImplementation((name: string) => {
       switch (name) {
-        case 'snapshot_date':
+        case 'calver_date':
           return '2026.04.19';
         case 'github_token':
           return 'token-value';
         case 'target_ref':
-          return '';
-        case 'target_sha':
-          return '';
+          return 'main';
         default:
           return '';
       }
@@ -65,14 +63,12 @@ describe('run', () => {
     coreMocks.getBooleanInput.mockReturnValue(true);
     coreMocks.getInput.mockImplementation((name: string) => {
       switch (name) {
-        case 'snapshot_date':
+        case 'calver_date':
           return '2026.04.19';
         case 'github_token':
           return 'token-value';
         case 'target_ref':
           return 'main';
-        case 'target_sha':
-          return '';
         default:
           return '';
       }
@@ -90,5 +86,22 @@ describe('run', () => {
     coreMocks.getBooleanInput.mockReturnValue(true);
 
     await expect(run()).rejects.toThrow('target_ref or target_sha is required when create_if_missing is true');
+  });
+
+  it('requires target_ref', async () => {
+    coreMocks.getInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'calver_date':
+          return '2026.04.19';
+        case 'github_token':
+          return 'token-value';
+        case 'target_ref':
+          return '';
+        default:
+          return '';
+      }
+    });
+
+    await expect(run()).rejects.toThrow('target_ref is required');
   });
 });
