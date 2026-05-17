@@ -19117,7 +19117,31 @@ function error(message, properties = {}) {
   issueCommand("error", toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 
-// src/calver-tag.ts
+// src/action/inputs.ts
+function getInputs() {
+  const calverDate = getInput("calver_date").trim();
+  const githubToken = getInput("github_token").trim();
+  const targetRef = getInput("target_ref").trim();
+  return {
+    calverDate: calverDate === "" ? void 0 : calverDate,
+    githubToken,
+    targetRef: targetRef === "" ? void 0 : targetRef
+  };
+}
+
+// src/action/outputs.ts
+function setCommonOutputs(outputs) {
+  setOutput("tag", outputs.tag);
+  setOutput("target_sha", outputs.targetSha);
+  setOutput("previous_tag", outputs.previousTag);
+  setOutput("previous_tag_sha", outputs.previousTagSha);
+}
+function setCreatedOutput(created) {
+  setOutput("created", created ? "true" : "false");
+}
+
+// src/domain/calver.ts
+var CANONICAL_CALVER_TAG_PATTERN = /^v\d{4}\.\d{2}\.\d{2}$/;
 var CALVER_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
 function parseCalverDateParts(calverDate) {
   const [yearText, monthText, dayText] = calverDate.split(".");
@@ -19159,8 +19183,34 @@ function buildCalverTag(calverDate) {
   validateCalverDate(calverDate);
   return `v${calverDate}`;
 }
+function isCanonicalCalverTag(tag) {
+  return CANONICAL_CALVER_TAG_PATTERN.test(tag);
+}
 
-// src/github.ts
+// src/domain/tag-policy.ts
+function shouldSkipTagCreation(latest, targetSha) {
+  return latest.exists && latest.sha === targetSha;
+}
+
+// src/github/context.ts
+function getApiContext(token) {
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (repository === void 0 || repository.trim() === "") {
+    throw new Error("GITHUB_REPOSITORY is not set");
+  }
+  const [owner, repo] = repository.split("/");
+  if (owner === void 0 || owner === "" || repo === void 0 || repo === "") {
+    throw new Error(`GITHUB_REPOSITORY must use owner/repo format, received: ${repository}`);
+  }
+  return {
+    token,
+    owner,
+    repo,
+    apiBaseUrl: process.env.GITHUB_API_URL?.trim() || "https://api.github.com"
+  };
+}
+
+// src/github/api.ts
 var GitHubApiError = class extends Error {
   status;
   details;
@@ -19210,14 +19260,13 @@ async function requestJson(context, path, init) {
   }
   return await response.json();
 }
+
+// src/github/refs.ts
 function encodeRefName(refName) {
   return refName.split("/").map((segment) => encodeURIComponent(segment)).join("/");
 }
 function tagNameFromRef(ref) {
   return ref.startsWith("refs/tags/") ? ref.slice("refs/tags/".length) : ref;
-}
-function isCanonicalCalverTagName(tag) {
-  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
 }
 async function dereferenceRefTarget(context, response) {
   if (response.object.type === "commit") {
@@ -19231,22 +19280,6 @@ async function dereferenceRefTarget(context, response) {
     throw new Error(`tag ${response.ref} does not point to a commit`);
   }
   return tag.object.sha;
-}
-function getApiContext(token) {
-  const repository = process.env.GITHUB_REPOSITORY;
-  if (repository === void 0 || repository.trim() === "") {
-    throw new Error("GITHUB_REPOSITORY is not set");
-  }
-  const [owner, repo] = repository.split("/");
-  if (owner === void 0 || owner === "" || repo === void 0 || repo === "") {
-    throw new Error(`GITHUB_REPOSITORY must use owner/repo format, received: ${repository}`);
-  }
-  return {
-    token,
-    owner,
-    repo,
-    apiBaseUrl: process.env.GITHUB_API_URL?.trim() || "https://api.github.com"
-  };
 }
 async function lookupTag(context, tag) {
   try {
@@ -19281,7 +19314,7 @@ async function findLatestCalverTag(context) {
       context,
       `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`
     );
-    const latest = response.map((item) => ({ item, tag: tagNameFromRef(item.ref) })).filter(({ tag }) => isCanonicalCalverTagName(tag)).sort((a, b) => b.tag.localeCompare(a.tag))[0];
+    const latest = response.map((item) => ({ item, tag: tagNameFromRef(item.ref) })).filter(({ tag }) => isCanonicalCalverTag(tag)).sort((a, b) => b.tag.localeCompare(a.tag))[0];
     if (latest === void 0) {
       return { exists: false };
     }
@@ -19361,30 +19394,12 @@ async function createLightweightTag(context, tag, targetSha) {
   }
 }
 
-// src/inputs.ts
-function getInputs() {
-  const calverDate = getInput("calver_date").trim();
-  const githubToken = getInput("github_token").trim();
-  const targetRef = getInput("target_ref").trim();
-  return {
-    calverDate: calverDate === "" ? void 0 : calverDate,
-    githubToken,
-    targetRef: targetRef === "" ? void 0 : targetRef
-  };
-}
-
 // src/main.ts
 function requireTargetRef(targetRef) {
   if (targetRef === void 0) {
     throw new Error("target_ref is required");
   }
   return targetRef;
-}
-function setCommonOutputs(tag, targetSha, previousTag, previousTagSha) {
-  setOutput("tag", tag);
-  setOutput("target_sha", targetSha);
-  setOutput("previous_tag", previousTag);
-  setOutput("previous_tag_sha", previousTagSha);
 }
 async function run() {
   const inputs = getInputs();
@@ -19400,9 +19415,14 @@ async function run() {
   const previous = await findLatestCalverTag(apiContext);
   const previousTag = previous.exists ? previous.tag : "";
   const previousTagSha = previous.exists ? previous.sha : "";
-  setCommonOutputs(tag, targetSha, previousTag, previousTagSha);
-  if (previous.exists && previous.sha === targetSha) {
-    setOutput("created", "false");
+  setCommonOutputs({
+    tag,
+    targetSha,
+    previousTag,
+    previousTagSha
+  });
+  if (shouldSkipTagCreation(previous, targetSha)) {
+    setCreatedOutput(false);
     return;
   }
   const existingToday = await lookupTag(apiContext, tag);
@@ -19412,7 +19432,7 @@ async function run() {
     );
   }
   const creationResult = existingToday.exists ? { created: false, sha: targetSha } : await createLightweightTag(apiContext, tag, targetSha);
-  setOutput("created", creationResult.created ? "true" : "false");
+  setCreatedOutput(creationResult.created);
 }
 
 // src/index.ts

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createLightweightTag, findLatestCalverTag, getApiContext, lookupTag, type TagLookupResult } from '../src/github';
+import { getApiContext } from '../src/github/context';
+import { createLightweightTag, findLatestCalverTag, lookupTag, type TagLookupResult } from '../src/github/refs';
 
 function jsonResponse(body: unknown, init: ResponseInit): Response {
   return new Response(JSON.stringify(body), {

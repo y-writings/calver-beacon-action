@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCalverTag, formatUtcDate, resolveCalverDate, validateCalverDate } from '../src/calver-tag';
+import {
+  buildCalverTag,
+  formatUtcDate,
+  isCanonicalCalverTag,
+  resolveCalverDate,
+  validateCalverDate,
+} from '../src/domain/calver';
 
 describe('CalVer tag helpers', () => {
   it('formats UTC dates as YYYY.MM.DD', () => {
@@ -19,6 +25,14 @@ describe('CalVer tag helpers', () => {
 
   it('builds the canonical CalVer tag', () => {
     expect(buildCalverTag('2026.04.19')).toBe('v2026.04.19');
+  });
+
+  it('identifies canonical CalVer tags', () => {
+    expect(isCanonicalCalverTag('v2026.04.19')).toBe(true);
+    expect(isCanonicalCalverTag('v2026.04.19-handmade-01')).toBe(false);
+    expect(isCanonicalCalverTag('2026.04.19')).toBe(false);
+    expect(isCanonicalCalverTag('v2026.4.19')).toBe(false);
+    expect(isCanonicalCalverTag('v1')).toBe(false);
   });
 
   it('rejects non-canonical CalVer dates', () => {

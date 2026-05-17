@@ -1,8 +1,9 @@
-import * as core from '@actions/core';
-
-import { buildCalverTag, resolveCalverDate, validateCalverDate } from './calver-tag';
-import { createLightweightTag, findLatestCalverTag, getApiContext, lookupTag, resolveTargetSha } from './github';
-import { getInputs } from './inputs';
+import { getInputs } from './action/inputs';
+import { setCommonOutputs, setCreatedOutput } from './action/outputs';
+import { buildCalverTag, resolveCalverDate, validateCalverDate } from './domain/calver';
+import { shouldSkipTagCreation } from './domain/tag-policy';
+import { getApiContext } from './github/context';
+import { createLightweightTag, findLatestCalverTag, lookupTag, resolveTargetSha } from './github/refs';
 
 function requireTargetRef(targetRef: string | undefined): string {
   if (targetRef === undefined) {
@@ -10,13 +11,6 @@ function requireTargetRef(targetRef: string | undefined): string {
   }
 
   return targetRef;
-}
-
-function setCommonOutputs(tag: string, targetSha: string, previousTag: string, previousTagSha: string): void {
-  core.setOutput('tag', tag);
-  core.setOutput('target_sha', targetSha);
-  core.setOutput('previous_tag', previousTag);
-  core.setOutput('previous_tag_sha', previousTagSha);
 }
 
 export async function run(): Promise<void> {
@@ -38,10 +32,15 @@ export async function run(): Promise<void> {
   const previousTag = previous.exists ? previous.tag : '';
   const previousTagSha = previous.exists ? previous.sha : '';
 
-  setCommonOutputs(tag, targetSha, previousTag, previousTagSha);
+  setCommonOutputs({
+    tag,
+    targetSha,
+    previousTag,
+    previousTagSha,
+  });
 
-  if (previous.exists && previous.sha === targetSha) {
-    core.setOutput('created', 'false');
+  if (shouldSkipTagCreation(previous, targetSha)) {
+    setCreatedOutput(false);
     return;
   }
 
@@ -56,5 +55,5 @@ export async function run(): Promise<void> {
     ? { created: false, sha: targetSha }
     : await createLightweightTag(apiContext, tag, targetSha);
 
-  core.setOutput('created', creationResult.created ? 'true' : 'false');
+  setCreatedOutput(creationResult.created);
 }
