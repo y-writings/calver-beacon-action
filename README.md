@@ -1,45 +1,45 @@
 # snapshot-tag-action
 
-Reusable GitHub Action for deriving immutable weekly snapshot tags in the form `vYYYY.MM.DD`, checking whether the remote tag already exists, and optionally creating the tag through the GitHub API.
+Create scheduled CalVer release-trigger tags for repositories that publish only when a target branch changed since the previous CalVer tag.
+
+The action creates canonical tags in the form `vYYYY.MM.DD`. It resolves `target_ref`, compares it with the latest existing canonical CalVer tag, and creates the new tag only when the target branch has changed.
 
 ## Requirements
 
-- For read-only lookup, the workflow token needs permission to read repository contents.
-- For `create_if_missing: true`, the workflow token needs `contents: write`.
-- External consumers do **not** need `actions/checkout` when using a published ref of this action.
-- Local development workflows that use `uses: ./` still need `actions/checkout`, because the runner needs the local action files in the workspace.
+- Grant `contents: write` so the action can inspect refs and create tags.
+- Published action usage does not require `actions/checkout`.
+- Local repository usage with `uses: ./` requires `actions/checkout` so the runner can load the local action files.
 
 ## Inputs
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `snapshot_date` | No | Optional override in `YYYY.MM.DD` format. When omitted, the action uses the current UTC date. |
-| `github_token` | No | GitHub token used for remote tag lookup and optional creation. Defaults to `${{ github.token }}`. |
-| `create_if_missing` | No | When `true`, create the remote lightweight tag if it is missing. Defaults to `false`. |
-| `target_ref` | No | Branch to resolve when `create_if_missing` is `true`, for example `main` or `refs/heads/main`. Mutually exclusive with `target_sha`. |
-| `target_sha` | No | Explicit commit SHA to tag when `create_if_missing` is `true`. Mutually exclusive with `target_ref`. Either `target_ref` or `target_sha` is required when `create_if_missing` is `true`. |
+| `target_ref` | Yes | Branch ref to evaluate and tag, for example `main` or `refs/heads/main`. |
+| `calver_date` | No | Optional date override in `YYYY.MM.DD` format. Defaults to the current UTC date. |
+| `github_token` | No | GitHub token used for remote ref lookup and tag creation. Defaults to `${{ github.token }}`. |
 
 ## Outputs
 
 | Name | Description |
 | --- | --- |
-| `tag` | Resolved snapshot tag, for example `v2026.04.19`. |
-| `tag_exists` | `true` when the tag already existed in the remote repository before the action ran, otherwise `false`. |
-| `created` | `true` when this action created the remote tag during the current run, otherwise `false`. |
-| `target_sha` | Commit SHA referenced by the existing or newly created tag when available. |
+| `tag` | CalVer tag the action attempted to create. |
+| `created` | Whether this action created the tag during this run. |
+| `target_sha` | Commit SHA resolved from `target_ref`. |
+| `previous_tag` | Latest existing canonical CalVer tag used for comparison, if any. |
+| `previous_tag_sha` | Commit SHA referenced by `previous_tag`, if any. |
 
-## Usage
+## Weekly Schedule Example
 
 ```yaml
-name: weekly-snapshot
+name: weekly-calver-tag
 
 on:
   schedule:
     - cron: '0 0 * * 1'
   workflow_dispatch:
     inputs:
-      snapshot_date:
-        description: Optional override in YYYY.MM.DD format for manual recovery.
+      calver_date:
+        description: Optional YYYY.MM.DD override for manual recovery.
         required: false
         type: string
 
@@ -47,44 +47,28 @@ permissions:
   contents: write
 
 jobs:
-  create-snapshot-tag:
+  create-calver-tag:
     runs-on: ubuntu-latest
     steps:
-      - id: snapshot-tag
+      - id: calver-tag
         uses: y-writings/snapshot-tag-action@v1
         with:
-          snapshot_date: ${{ inputs.snapshot_date }}
-          create_if_missing: 'true'
           target_ref: main
+          calver_date: ${{ inputs.calver_date }}
           github_token: ${{ github.token }}
 ```
 
-## Local development workflow usage
+## Same-Day Manual Tags
 
-When this repository tests the action with `uses: ./`, it still needs checkout because the runner must load the local action files:
+This action only creates canonical daily tags like `v2026.05.10`. For an extra release on the same day, create a manual tag with a unique suffix, such as `v2026.05.10-handmade-01`.
 
-```yaml
-- uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-- id: snapshot-tag
-  uses: ./
-  with:
-    snapshot_date: 2099.12.31
-    github_token: ${{ github.token }}
-```
+Downstream release workflows may match tag prefixes such as `v2026.05.10` when they need to handle both the canonical tag and same-day manual tags.
 
-## Development
+## Local Development
 
 ```bash
 mise exec -- pnpm install
 mise exec -- pnpm test
 mise exec -- pnpm typecheck
 mise exec -- pnpm build
-```
-
-## Publishing for external reuse
-
-Once you create a public version tag such as `v1`, downstream repositories can use:
-
-```yaml
-- uses: y-writings/snapshot-tag-action@v1
 ```
