@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const coreMocks = vi.hoisted(() => ({
   getInput: vi.fn<(name: string) => string>(),
-  getBooleanInput: vi.fn<(name: string) => boolean>(),
   setOutput: vi.fn<(name: string, value: string) => void>(),
 }));
 
@@ -35,7 +34,6 @@ describe('run', () => {
       }
     });
 
-    coreMocks.getBooleanInput.mockReturnValue(false);
     githubMocks.getApiContext.mockReturnValue({ token: 'token-value' });
     githubMocks.lookupTag.mockResolvedValue({
       exists: false,
