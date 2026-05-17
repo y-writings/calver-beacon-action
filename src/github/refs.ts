@@ -1,9 +1,6 @@
-export interface ApiContext {
-  token: string;
-  owner: string;
-  repo: string;
-  apiBaseUrl: string;
-}
+import { isCanonicalCalverTag } from '../domain/calver';
+import type { LatestCalverTag } from '../domain/tag-policy';
+import { GitHubApiError, requestJson, type ApiContext } from './api';
 
 interface GitRefResponse {
   ref: string;
@@ -35,69 +32,6 @@ export interface CreateTagResult {
   sha: string;
 }
 
-export type LatestCalverTagResult =
-  | { exists: false }
-  | { exists: true; ref: string; tag: string; sha: string };
-
-export class GitHubApiError extends Error {
-  public readonly status: number;
-  public readonly details: string;
-
-  public constructor(message: string, status: number, details: string) {
-    super(message);
-    this.name = 'GitHubApiError';
-    this.status = status;
-    this.details = details;
-  }
-}
-
-function buildApiUrl(apiBaseUrl: string, path: string): string {
-  const normalizedBase = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
-  return `${normalizedBase}${path}`;
-}
-
-function formatErrorDetails(bodyText: string): string {
-  if (bodyText.trim() === '') {
-    return 'No response body returned.';
-  }
-
-  try {
-    const parsed = JSON.parse(bodyText) as { message?: string; errors?: unknown };
-    if (parsed.message !== undefined) {
-      const suffix = parsed.errors === undefined ? '' : ` errors=${JSON.stringify(parsed.errors)}`;
-      return `${parsed.message}${suffix}`;
-    }
-  } catch {
-    // Fall back to the raw body text.
-  }
-
-  return bodyText;
-}
-
-async function requestJson<T>(context: ApiContext, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(buildApiUrl(context.apiBaseUrl, path), {
-    ...init,
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${context.token}`,
-      'User-Agent': 'snapshot-tag-action',
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const bodyText = await response.text();
-    throw new GitHubApiError(
-      `GitHub API request failed: ${response.status} ${response.statusText}`,
-      response.status,
-      formatErrorDetails(bodyText),
-    );
-  }
-
-  return await response.json() as T;
-}
-
 function encodeRefName(refName: string): string {
   return refName
     .split('/')
@@ -107,10 +41,6 @@ function encodeRefName(refName: string): string {
 
 function tagNameFromRef(ref: string): string {
   return ref.startsWith('refs/tags/') ? ref.slice('refs/tags/'.length) : ref;
-}
-
-function isCanonicalCalverTagName(tag: string): boolean {
-  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
 }
 
 async function dereferenceRefTarget(context: ApiContext, response: GitRefResponse): Promise<string> {
@@ -128,26 +58,6 @@ async function dereferenceRefTarget(context: ApiContext, response: GitRefRespons
   }
 
   return tag.object.sha;
-}
-
-export function getApiContext(token: string): ApiContext {
-  const repository = process.env.GITHUB_REPOSITORY;
-
-  if (repository === undefined || repository.trim() === '') {
-    throw new Error('GITHUB_REPOSITORY is not set');
-  }
-
-  const [owner, repo] = repository.split('/');
-  if (owner === undefined || owner === '' || repo === undefined || repo === '') {
-    throw new Error(`GITHUB_REPOSITORY must use owner/repo format, received: ${repository}`);
-  }
-
-  return {
-    token,
-    owner,
-    repo,
-    apiBaseUrl: process.env.GITHUB_API_URL?.trim() || 'https://api.github.com',
-  };
 }
 
 export async function lookupTag(context: ApiContext, tag: string): Promise<TagLookupResult> {
@@ -182,7 +92,7 @@ export async function lookupTag(context: ApiContext, tag: string): Promise<TagLo
   }
 }
 
-export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTagResult> {
+export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTag> {
   try {
     const response = await requestJson<GitRefListResponseItem[]>(
       context,
@@ -191,7 +101,7 @@ export async function findLatestCalverTag(context: ApiContext): Promise<LatestCa
 
     const latest = response
       .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
-      .filter(({ tag }) => isCanonicalCalverTagName(tag))
+      .filter(({ tag }) => isCanonicalCalverTag(tag))
       .sort((a, b) => b.tag.localeCompare(a.tag))[0];
 
     if (latest === undefined) {

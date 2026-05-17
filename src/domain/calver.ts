@@ -1,3 +1,4 @@
+const CANONICAL_CALVER_TAG_PATTERN = /^v\d{4}\.\d{2}\.\d{2}$/;
 const CALVER_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
 
 function parseCalverDateParts(calverDate: string): { year: number; month: number; day: number } {
@@ -56,5 +57,5 @@ export function buildCalverTag(calverDate: string): string {
 }
 
 export function isCanonicalCalverTag(tag: string): boolean {
-  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
+  return CANONICAL_CALVER_TAG_PATTERN.test(tag);
 }
