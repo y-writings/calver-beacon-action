@@ -13,6 +13,8 @@ interface GitRefResponse {
   };
 }
 
+interface GitRefListResponseItem extends GitRefResponse {}
+
 interface GitTagResponse {
   sha: string;
   object: {
@@ -32,6 +34,10 @@ export interface CreateTagResult {
   ref: string;
   sha: string;
 }
+
+export type LatestCalverTagResult =
+  | { exists: false }
+  | { exists: true; ref: string; tag: string; sha: string };
 
 export class GitHubApiError extends Error {
   public readonly status: number;
@@ -99,6 +105,14 @@ function encodeRefName(refName: string): string {
     .join('/');
 }
 
+function tagNameFromRef(ref: string): string {
+  return ref.startsWith('refs/tags/') ? ref.slice('refs/tags/'.length) : ref;
+}
+
+function isCanonicalCalverTagName(tag: string): boolean {
+  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
+}
+
 async function dereferenceRefTarget(context: ApiContext, response: GitRefResponse): Promise<string> {
   if (response.object.type === 'commit') {
     return response.object.sha;
@@ -161,6 +175,43 @@ export async function lookupTag(context: ApiContext, tag: string): Promise<TagLo
     if (error instanceof GitHubApiError && error.status === 403) {
       throw new Error(
         `GitHub API rejected tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error.details}`,
+      );
+    }
+
+    throw error;
+  }
+}
+
+export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTagResult> {
+  try {
+    const response = await requestJson<GitRefListResponseItem[]>(
+      context,
+      `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`,
+    );
+
+    const latest = response
+      .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
+      .filter(({ tag }) => isCanonicalCalverTagName(tag))
+      .sort((a, b) => b.tag.localeCompare(a.tag))[0];
+
+    if (latest === undefined) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      ref: latest.item.ref,
+      tag: latest.tag,
+      sha: await dereferenceRefTarget(context, latest.item),
+    };
+  } catch (error: unknown) {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return { exists: false };
+    }
+
+    if (error instanceof GitHubApiError && error.status === 403) {
+      throw new Error(
+        `GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error.details}`,
       );
     }
 

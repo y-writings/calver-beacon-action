@@ -1,11 +1,11 @@
-name: weekly-snapshot
+name: weekly-calver-tag
 
 on:
   schedule:
     - cron: '0 0 * * 1'
   workflow_dispatch:
     inputs:
-      snapshot_date:
+      calver_date:
         description: Optional override in YYYY.MM.DD format for manual recovery.
         required: false
         type: string
@@ -14,12 +14,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: weekly-snapshot-main
+  group: weekly-calver-tag-main
   cancel-in-progress: false
 
 jobs:
-  create-snapshot-tag:
-    name: Create weekly snapshot tag on main
+  create-calver-tag:
+    name: Create weekly CalVer tag on main
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository for local action files
@@ -27,19 +27,19 @@ jobs:
         with:
           ref: main
 
-      - name: Create weekly snapshot tag through GitHub API
-        id: snapshot-tag
+      - name: Create weekly CalVer tag through GitHub API
+        id: calver-tag
         uses: ./
         with:
-          snapshot_date: ${{ inputs.snapshot_date }}
-          create_if_missing: 'true'
+          calver_date: ${{ inputs.calver_date }}
           target_ref: main
           github_token: ${{ github.token }}
 
-      - name: Report snapshot tag result
+      - name: Report CalVer tag result
         env:
-          TAG: ${{ steps.snapshot-tag.outputs.tag }}
-          TAG_EXISTS: ${{ steps.snapshot-tag.outputs.tag_exists }}
-          CREATED: ${{ steps.snapshot-tag.outputs.created }}
-          TARGET_SHA: ${{ steps.snapshot-tag.outputs.target_sha }}
-        run: echo "Snapshot tag ${TAG} already_existed=${TAG_EXISTS} created=${CREATED} target_sha=${TARGET_SHA}"
+          TAG: ${{ steps.calver-tag.outputs.tag }}
+          CREATED: ${{ steps.calver-tag.outputs.created }}
+          TARGET_SHA: ${{ steps.calver-tag.outputs.target_sha }}
+          PREVIOUS_TAG: ${{ steps.calver-tag.outputs.previous_tag }}
+          PREVIOUS_TAG_SHA: ${{ steps.calver-tag.outputs.previous_tag_sha }}
+        run: echo "CalVer tag ${TAG} created=${CREATED} target_sha=${TARGET_SHA} previous_tag=${PREVIOUS_TAG} previous_tag_sha=${PREVIOUS_TAG_SHA}"

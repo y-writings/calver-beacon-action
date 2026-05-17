@@ -1,35 +1,30 @@
 name: Snapshot Tag Action
-description: Derive weekly snapshot tags like vYYYY.MM.DD, check remote tag existence, and optionally create the tag via GitHub API.
+description: Create scheduled CalVer release-trigger tags when a target branch changed since the previous CalVer tag.
 author: y-writings
 
 inputs:
-  snapshot_date:
-    description: Optional override in YYYY.MM.DD format.
+  target_ref:
+    description: Branch ref to evaluate and tag, for example main or refs/heads/main.
+    required: true
+  calver_date:
+    description: Optional date override in YYYY.MM.DD format. Defaults to the current UTC date.
     required: false
   github_token:
-    description: GitHub token used for remote tag lookup and optional creation.
+    description: GitHub token used for remote ref lookup and tag creation.
     required: false
     default: ${{ github.token }}
-  create_if_missing:
-    description: Whether to create the remote lightweight tag when it does not already exist.
-    required: false
-    default: 'false'
-  target_ref:
-    description: Branch ref to resolve when create_if_missing is true, for example main or refs/heads/main. Mutually exclusive with target_sha.
-    required: false
-  target_sha:
-    description: Explicit commit SHA to tag when create_if_missing is true. Mutually exclusive with target_ref. Either target_ref or target_sha is required when create_if_missing is true.
-    required: false
 
 outputs:
   tag:
-    description: Resolved snapshot tag.
-  tag_exists:
-    description: Whether the resolved tag already existed in the remote repository before this action ran.
+    description: CalVer tag the action attempted to create.
   created:
-    description: Whether this action created the remote tag during this run.
+    description: Whether this action created the tag during this run.
   target_sha:
-    description: Commit SHA referenced by the existing or newly created tag when available.
+    description: Commit SHA resolved from target_ref.
+  previous_tag:
+    description: Latest existing canonical CalVer tag used for comparison, if any.
+  previous_tag_sha:
+    description: Commit SHA referenced by previous_tag, if any.
 
 runs:
   using: node24

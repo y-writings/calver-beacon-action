@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createLightweightTag, getApiContext, lookupTag, type TagLookupResult } from '../src/github';
+import { createLightweightTag, findLatestCalverTag, getApiContext, lookupTag, type TagLookupResult } from '../src/github';
 
 function jsonResponse(body: unknown, init: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -120,6 +120,99 @@ describe('GitHub API helpers', () => {
       ref: 'refs/tags/v2026.04.19',
       sha: 'commit-sha',
     });
+  });
+
+  it('finds the latest canonical CalVer tag and dereferences it', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          [
+            { ref: 'refs/tags/v2026.05.10-handmade-01', object: { type: 'commit', sha: 'ignored-manual' } },
+            { ref: 'refs/tags/v2026.05.03', object: { type: 'commit', sha: 'old-sha' } },
+            { ref: 'refs/tags/v2026.05.10', object: { type: 'commit', sha: 'latest-sha' } },
+            { ref: 'refs/tags/v1', object: { type: 'commit', sha: 'ignored-version' } },
+          ],
+          { status: 200 },
+        ),
+      );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: true,
+      ref: 'refs/tags/v2026.05.10',
+      tag: 'v2026.05.10',
+      sha: 'latest-sha',
+    });
+  });
+
+  it('returns a missing latest CalVer tag when no canonical tags exist', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      jsonResponse(
+        [
+          { ref: 'refs/tags/v2026.05.10-handmade-01', object: { type: 'commit', sha: 'manual-sha' } },
+          { ref: 'refs/tags/v1', object: { type: 'commit', sha: 'version-sha' } },
+        ],
+        { status: 200 },
+      ),
+    );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: false,
+    });
+  });
+
+  it('returns a missing latest CalVer tag when no tag refs match the v prefix', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('Not Found', { status: 404, statusText: 'Not Found' }));
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: false,
+    });
+  });
+
+  it('returns a clear error when latest CalVer tag lookup is forbidden', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Resource not accessible by integration' }), {
+        status: 403,
+        statusText: 'Forbidden',
+      }),
+    );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).rejects.toThrow(
+      'GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents.',
+    );
+  });
+
+  it('returns a clear error when latest CalVer tag dereference is forbidden', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          [
+            { ref: 'refs/tags/v2026.05.10', object: { type: 'tag', sha: 'tag-object-sha' } },
+          ],
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: 'Resource not accessible by integration' }), {
+          status: 403,
+          statusText: 'Forbidden',
+        }),
+      );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).rejects.toThrow(
+      'GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents.',
+    );
   });
 
   it('treats create conflicts as idempotent when the remote tag already points to the expected commit', async () => {

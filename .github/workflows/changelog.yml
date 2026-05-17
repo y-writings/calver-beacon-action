@@ -3,7 +3,7 @@ name: changelog
 on:
   workflow_run:
     workflows:
-      - weekly-snapshot
+      - weekly-calver-tag
     types:
       - completed
   workflow_dispatch:
@@ -57,4 +57,4 @@ jobs:
           body: |
             ## Summary
             - regenerate `CHANGELOG.md` from the latest tagged `main` branch history
-            - keep weekly snapshot summaries on a dedicated automation branch instead of pushing directly to `main`
+            - keep weekly CalVer tag summaries on a dedicated automation branch instead of pushing directly to `main`

@@ -36,22 +36,5 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Smoke test local action
-        id: smoke-test
-        uses: ./
-        with:
-          snapshot_date: 2099.12.31
-          github_token: ${{ github.token }}
-
-      - name: Assert smoke test outputs
-        env:
-          TAG: ${{ steps.smoke-test.outputs.tag }}
-          TAG_EXISTS: ${{ steps.smoke-test.outputs.tag_exists }}
-          CREATED: ${{ steps.smoke-test.outputs.created }}
-        run: |
-          test "$TAG" = "v2099.12.31"
-          test "$TAG_EXISTS" = "false"
-          test "$CREATED" = "false"
-
       - name: Verify committed dist is up to date
         run: git diff --exit-code -- dist
