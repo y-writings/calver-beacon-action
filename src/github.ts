@@ -35,12 +35,9 @@ export interface CreateTagResult {
   sha: string;
 }
 
-export interface LatestCalverTagResult {
-  exists: boolean;
-  ref?: string;
-  tag?: string;
-  sha?: string;
-}
+export type LatestCalverTagResult =
+  | { exists: false }
+  | { exists: true; ref: string; tag: string; sha: string };
 
 export class GitHubApiError extends Error {
   public readonly status: number;
@@ -186,26 +183,36 @@ export async function lookupTag(context: ApiContext, tag: string): Promise<TagLo
 }
 
 export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTagResult> {
-  const response = await requestJson<GitRefListResponseItem[]>(
-    context,
-    `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`,
-  );
+  try {
+    const response = await requestJson<GitRefListResponseItem[]>(
+      context,
+      `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`,
+    );
 
-  const latest = response
-    .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
-    .filter(({ tag }) => isCanonicalCalverTagName(tag))
-    .sort((a, b) => b.tag.localeCompare(a.tag))[0];
+    const latest = response
+      .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
+      .filter(({ tag }) => isCanonicalCalverTagName(tag))
+      .sort((a, b) => b.tag.localeCompare(a.tag))[0];
 
-  if (latest === undefined) {
-    return { exists: false };
+    if (latest === undefined) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      ref: latest.item.ref,
+      tag: latest.tag,
+      sha: await dereferenceRefTarget(context, latest.item),
+    };
+  } catch (error: unknown) {
+    if (error instanceof GitHubApiError && error.status === 403) {
+      throw new Error(
+        `GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error.details}`,
+      );
+    }
+
+    throw error;
   }
-
-  return {
-    exists: true,
-    ref: latest.item.ref,
-    tag: latest.tag,
-    sha: await dereferenceRefTarget(context, latest.item),
-  };
 }
 
 export async function resolveTargetSha(context: ApiContext, targetRef: string): Promise<string> {

@@ -165,6 +165,46 @@ describe('GitHub API helpers', () => {
     });
   });
 
+  it('returns a clear error when latest CalVer tag lookup is forbidden', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Resource not accessible by integration' }), {
+        status: 403,
+        statusText: 'Forbidden',
+      }),
+    );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).rejects.toThrow(
+      'GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents.',
+    );
+  });
+
+  it('returns a clear error when latest CalVer tag dereference is forbidden', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          [
+            { ref: 'refs/tags/v2026.05.10', object: { type: 'tag', sha: 'tag-object-sha' } },
+          ],
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: 'Resource not accessible by integration' }), {
+          status: 403,
+          statusText: 'Forbidden',
+        }),
+      );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).rejects.toThrow(
+      'GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents.',
+    );
+  });
+
   it('treats create conflicts as idempotent when the remote tag already points to the expected commit', async () => {
     global.fetch = vi
       .fn()
