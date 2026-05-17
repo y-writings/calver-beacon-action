@@ -205,6 +205,10 @@ export async function findLatestCalverTag(context: ApiContext): Promise<LatestCa
       sha: await dereferenceRefTarget(context, latest.item),
     };
   } catch (error: unknown) {
+    if (error instanceof GitHubApiError && error.status === 404) {
+      return { exists: false };
+    }
+
     if (error instanceof GitHubApiError && error.status === 403) {
       throw new Error(
         `GitHub API rejected CalVer tag lookup with 403 Forbidden. Ensure the workflow token can read repository contents. Details: ${error.details}`,

@@ -165,6 +165,16 @@ describe('GitHub API helpers', () => {
     });
   });
 
+  it('returns a missing latest CalVer tag when no tag refs match the v prefix', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response('Not Found', { status: 404, statusText: 'Not Found' }));
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: false,
+    });
+  });
+
   it('returns a clear error when latest CalVer tag lookup is forbidden', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ message: 'Resource not accessible by integration' }), {
