@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 
 import { createLightweightTag, getApiContext, lookupTag, resolveTargetSha } from './github';
 import { getInputs } from './inputs';
-import { buildSnapshotTag, resolveSnapshotDate, validateSnapshotDate } from './snapshot-tag';
+import { buildCalverTag, resolveCalverDate, validateCalverDate } from './calver-tag';
 
 function validateTargetInputs(targetRef: string | undefined, targetSha: string | undefined): void {
   if (targetRef !== undefined && targetSha !== undefined) {
@@ -12,7 +12,7 @@ function validateTargetInputs(targetRef: string | undefined, targetSha: string |
 
 export async function run(): Promise<void> {
   const inputs = getInputs();
-  const snapshotDate = resolveSnapshotDate(inputs.snapshotDate);
+  const snapshotDate = resolveCalverDate(inputs.snapshotDate);
 
   if (inputs.githubToken === '') {
     throw new Error('github_token is required');
@@ -20,9 +20,9 @@ export async function run(): Promise<void> {
 
   validateTargetInputs(inputs.targetRef, inputs.targetSha);
 
-  validateSnapshotDate(snapshotDate);
+  validateCalverDate(snapshotDate);
 
-  const tag = buildSnapshotTag(snapshotDate);
+  const tag = buildCalverTag(snapshotDate);
   const apiContext = getApiContext(inputs.githubToken);
   const existingTag = await lookupTag(apiContext, tag);
 
