@@ -13,6 +13,8 @@ interface GitRefResponse {
   };
 }
 
+interface GitRefListResponseItem extends GitRefResponse {}
+
 interface GitTagResponse {
   sha: string;
   object: {
@@ -31,6 +33,13 @@ export interface CreateTagResult {
   created: boolean;
   ref: string;
   sha: string;
+}
+
+export interface LatestCalverTagResult {
+  exists: boolean;
+  ref?: string;
+  tag?: string;
+  sha?: string;
 }
 
 export class GitHubApiError extends Error {
@@ -97,6 +106,14 @@ function encodeRefName(refName: string): string {
     .split('/')
     .map(segment => encodeURIComponent(segment))
     .join('/');
+}
+
+function tagNameFromRef(ref: string): string {
+  return ref.startsWith('refs/tags/') ? ref.slice('refs/tags/'.length) : ref;
+}
+
+function isCanonicalCalverTagName(tag: string): boolean {
+  return /^v\d{4}\.\d{2}\.\d{2}$/.test(tag);
 }
 
 async function dereferenceRefTarget(context: ApiContext, response: GitRefResponse): Promise<string> {
@@ -166,6 +183,29 @@ export async function lookupTag(context: ApiContext, tag: string): Promise<TagLo
 
     throw error;
   }
+}
+
+export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTagResult> {
+  const response = await requestJson<GitRefListResponseItem[]>(
+    context,
+    `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`,
+  );
+
+  const latest = response
+    .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
+    .filter(({ tag }) => isCanonicalCalverTagName(tag))
+    .sort((a, b) => b.tag.localeCompare(a.tag))[0];
+
+  if (latest === undefined) {
+    return { exists: false };
+  }
+
+  return {
+    exists: true,
+    ref: latest.item.ref,
+    tag: latest.tag,
+    sha: await dereferenceRefTarget(context, latest.item),
+  };
 }
 
 export async function resolveTargetSha(context: ApiContext, targetRef: string): Promise<string> {

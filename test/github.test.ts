@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createLightweightTag, getApiContext, lookupTag, type TagLookupResult } from '../src/github';
+import { createLightweightTag, findLatestCalverTag, getApiContext, lookupTag, type TagLookupResult } from '../src/github';
 
 function jsonResponse(body: unknown, init: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -119,6 +119,49 @@ describe('GitHub API helpers', () => {
       exists: true,
       ref: 'refs/tags/v2026.04.19',
       sha: 'commit-sha',
+    });
+  });
+
+  it('finds the latest canonical CalVer tag and dereferences it', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          [
+            { ref: 'refs/tags/v2026.05.10-handmade-01', object: { type: 'commit', sha: 'ignored-manual' } },
+            { ref: 'refs/tags/v2026.05.03', object: { type: 'commit', sha: 'old-sha' } },
+            { ref: 'refs/tags/v2026.05.10', object: { type: 'commit', sha: 'latest-sha' } },
+            { ref: 'refs/tags/v1', object: { type: 'commit', sha: 'ignored-version' } },
+          ],
+          { status: 200 },
+        ),
+      );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: true,
+      ref: 'refs/tags/v2026.05.10',
+      tag: 'v2026.05.10',
+      sha: 'latest-sha',
+    });
+  });
+
+  it('returns a missing latest CalVer tag when no canonical tags exist', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      jsonResponse(
+        [
+          { ref: 'refs/tags/v2026.05.10-handmade-01', object: { type: 'commit', sha: 'manual-sha' } },
+          { ref: 'refs/tags/v1', object: { type: 'commit', sha: 'version-sha' } },
+        ],
+        { status: 200 },
+      ),
+    );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context)).resolves.toEqual({
+      exists: false,
     });
   });
 
