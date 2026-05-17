@@ -4,25 +4,21 @@ import { createLightweightTag, getApiContext, lookupTag, resolveTargetSha } from
 import { getInputs } from './inputs';
 import { buildCalverTag, resolveCalverDate, validateCalverDate } from './calver-tag';
 
-function validateTargetInputs(targetRef: string | undefined, targetSha: string | undefined): void {
-  if (targetRef !== undefined && targetSha !== undefined) {
-    throw new Error('target_ref and target_sha are mutually exclusive');
-  }
-}
-
 export async function run(): Promise<void> {
   const inputs = getInputs();
-  const snapshotDate = resolveCalverDate(inputs.snapshotDate);
+  const calverDate = resolveCalverDate(inputs.calverDate);
 
   if (inputs.githubToken === '') {
     throw new Error('github_token is required');
   }
 
-  validateTargetInputs(inputs.targetRef, inputs.targetSha);
+  if (inputs.targetRef === undefined) {
+    throw new Error('target_ref is required');
+  }
 
-  validateCalverDate(snapshotDate);
+  validateCalverDate(calverDate);
 
-  const tag = buildCalverTag(snapshotDate);
+  const tag = buildCalverTag(calverDate);
   const apiContext = getApiContext(inputs.githubToken);
   const existingTag = await lookupTag(apiContext, tag);
 
@@ -35,16 +31,7 @@ export async function run(): Promise<void> {
     return;
   }
 
-  if (!inputs.createIfMissing) {
-    core.setOutput('created', 'false');
-    core.setOutput('target_sha', '');
-    return;
-  }
-
-  const targetSha = inputs.targetSha ?? (inputs.targetRef === undefined ? undefined : await resolveTargetSha(apiContext, inputs.targetRef));
-  if (targetSha === undefined) {
-    throw new Error('target_ref or target_sha is required when create_if_missing is true');
-  }
+  const targetSha = await resolveTargetSha(apiContext, inputs.targetRef);
 
   const creationResult = await createLightweightTag(apiContext, tag, targetSha);
 

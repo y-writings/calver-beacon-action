@@ -49,18 +49,24 @@ describe('run', () => {
     });
   });
 
-  it('returns tag lookup results without creating when create_if_missing is false', async () => {
+  it('returns existing tag lookup results without creating', async () => {
+    githubMocks.lookupTag.mockResolvedValue({
+      exists: true,
+      ref: 'refs/tags/v2026.04.19',
+      sha: 'def456',
+    });
+
     await run();
 
     expect(coreMocks.setOutput).toHaveBeenCalledWith('tag', 'v2026.04.19');
-    expect(coreMocks.setOutput).toHaveBeenCalledWith('tag_exists', 'false');
+    expect(coreMocks.setOutput).toHaveBeenCalledWith('tag_exists', 'true');
     expect(coreMocks.setOutput).toHaveBeenCalledWith('created', 'false');
-    expect(coreMocks.setOutput).toHaveBeenCalledWith('target_sha', '');
+    expect(coreMocks.setOutput).toHaveBeenCalledWith('target_sha', 'def456');
+    expect(githubMocks.resolveTargetSha).not.toHaveBeenCalled();
     expect(githubMocks.createLightweightTag).not.toHaveBeenCalled();
   });
 
-  it('creates a remote tag when requested', async () => {
-    coreMocks.getBooleanInput.mockReturnValue(true);
+  it('creates a remote tag when missing', async () => {
     coreMocks.getInput.mockImplementation((name: string) => {
       switch (name) {
         case 'calver_date':
@@ -80,12 +86,6 @@ describe('run', () => {
     expect(githubMocks.createLightweightTag).toHaveBeenCalledWith({ token: 'token-value' }, 'v2026.04.19', 'abc123');
     expect(coreMocks.setOutput).toHaveBeenCalledWith('created', 'true');
     expect(coreMocks.setOutput).toHaveBeenCalledWith('target_sha', 'abc123');
-  });
-
-  it('requires a target when create_if_missing is true', async () => {
-    coreMocks.getBooleanInput.mockReturnValue(true);
-
-    await expect(run()).rejects.toThrow('target_ref or target_sha is required when create_if_missing is true');
   });
 
   it('requires target_ref', async () => {
