@@ -1,0 +1,57 @@
+name: auto-merge-changelog
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: auto-merge-changelog-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable-auto-merge:
+    name: Validate changelog PR and enable auto-merge
+    if: >-
+      ${{
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'automation/update-changelog'
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Verify pull request changes only CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          files="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json files --jq '.files[].path')"
+          printf '%s\n' "${files}"
+
+          if [ "${files}" != "CHANGELOG.md" ]; then
+            echo "Refusing to auto-merge because the PR changes files other than CHANGELOG.md" >&2
+            exit 1
+          fi
+
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: gh pr merge "${PR_NUMBER}" --repo "${REPOSITORY}" --squash --auto --delete-branch
