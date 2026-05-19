@@ -32,6 +32,8 @@ jobs:
         env:
           APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
           PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          APPROVER_APP_ID: ${{ vars.CHANGELOG_APPROVER_APP_ID }}
+          APPROVER_PRIVATE_KEY: ${{ secrets.CHANGELOG_APPROVER_APP_PRIVATE_KEY }}
         run: |
           if [ -z "${APP_ID}" ]; then
             echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
@@ -43,6 +45,21 @@ jobs:
             exit 1
           fi
 
+          if [ -z "${APPROVER_APP_ID}" ]; then
+            echo "Missing repository variable CHANGELOG_APPROVER_APP_ID" >&2
+            exit 1
+          fi
+
+          if [ -z "${APPROVER_PRIVATE_KEY}" ]; then
+            echo "Missing repository secret CHANGELOG_APPROVER_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+
+          if [ "${APP_ID}" = "${APPROVER_APP_ID}" ]; then
+            echo "CHANGELOG_APPROVER_APP_ID must be different from RELEASE_PLEASE_APP_ID" >&2
+            exit 1
+          fi
+
       - name: Create GitHub App token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
@@ -50,7 +67,15 @@ jobs:
           app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
+      - name: Create changelog approver GitHub App token
+        id: approver-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.CHANGELOG_APPROVER_APP_ID }}
+          private-key: ${{ secrets.CHANGELOG_APPROVER_APP_PRIVATE_KEY }}
+
       - name: Verify pull request changes only CHANGELOG.md
+        id: verify-changes
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -64,9 +89,35 @@ jobs:
             exit 1
           fi
 
+          head_sha="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json headRefOid --jq '.headRefOid')"
+          if [ -z "${head_sha}" ]; then
+            echo "Failed to resolve pull request head SHA" >&2
+            exit 1
+          fi
+
+          echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Approve changelog pull request
+        env:
+          GH_TOKEN: ${{ steps.approver-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh pr review "${PR_NUMBER}" \
+            --repo "${REPOSITORY}" \
+            --approve \
+            --body "Automated approval for CHANGELOG.md-only release PR."
+
       - name: Enable auto-merge
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
-        run: gh pr merge "${PR_NUMBER}" --repo "${REPOSITORY}" --squash --auto --delete-branch
+          HEAD_SHA: ${{ steps.verify-changes.outputs.head_sha }}
+        run: |
+          gh pr merge "${PR_NUMBER}" \
+            --repo "${REPOSITORY}" \
+            --squash \
+            --auto \
+            --delete-branch \
+            --match-head-commit "${HEAD_SHA}"
