@@ -82,12 +82,13 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           EXPECTED_AUTHOR: app/y-writings-release-please-bot
         run: |
-          pr_view="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json author,files,headRefOid --jq '.headRefOid, .author.login, (.files[].path)')"
+          pr_view="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json author,files,headRefOid,id --jq '.id, .headRefOid, .author.login, (.files[].path)')"
           mapfile -t pr_lines <<< "${pr_view}"
 
-          head_sha="${pr_lines[0]:-}"
-          author="${pr_lines[1]:-}"
-          files=("${pr_lines[@]:2}")
+          pull_request_id="${pr_lines[0]:-}"
+          head_sha="${pr_lines[1]:-}"
+          author="${pr_lines[2]:-}"
+          files=("${pr_lines[@]:3}")
 
           printf '%s\n' "${files[@]}"
 
@@ -106,18 +107,25 @@ jobs:
             exit 1
           fi
 
+          if [ -z "${pull_request_id}" ]; then
+            echo "Failed to resolve pull request node ID" >&2
+            exit 1
+          fi
+
+          echo "pull_request_id=${pull_request_id}" >> "${GITHUB_OUTPUT}"
           echo "head_sha=${head_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Approve changelog pull request
         env:
           GH_TOKEN: ${{ steps.approver-token.outputs.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPOSITORY: ${{ github.repository }}
+          PULL_REQUEST_ID: ${{ steps.verify-changes.outputs.pull_request_id }}
+          HEAD_SHA: ${{ steps.verify-changes.outputs.head_sha }}
         run: |
-          gh pr review "${PR_NUMBER}" \
-            --repo "${REPOSITORY}" \
-            --approve \
-            --body "Automated approval for CHANGELOG.md-only release PR."
+          gh api graphql \
+            -f pullRequestId="${PULL_REQUEST_ID}" \
+            -f commitOID="${HEAD_SHA}" \
+            -f body="Automated approval for CHANGELOG.md-only release PR." \
+            -f query='mutation($pullRequestId: ID!, $commitOID: GitObjectID!, $body: String!) { addPullRequestReview(input: { pullRequestId: $pullRequestId, commitOID: $commitOID, event: APPROVE, body: $body }) { pullRequestReview { id } } }'
 
       - name: Enable auto-merge
         env:
