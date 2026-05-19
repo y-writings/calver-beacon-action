@@ -80,16 +80,27 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
+          EXPECTED_AUTHOR: app/y-writings-release-please-bot
         run: |
-          files="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json files --jq '.files[].path')"
-          printf '%s\n' "${files}"
+          pr_view="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json author,files,headRefOid --jq '.headRefOid, .author.login, (.files[].path)')"
+          mapfile -t pr_lines <<< "${pr_view}"
 
-          if [ "${files}" != "CHANGELOG.md" ]; then
+          head_sha="${pr_lines[0]:-}"
+          author="${pr_lines[1]:-}"
+          files=("${pr_lines[@]:2}")
+
+          printf '%s\n' "${files[@]}"
+
+          if [ "${author}" != "${EXPECTED_AUTHOR}" ]; then
+            echo "Refusing to auto-merge because the PR author is ${author}, expected ${EXPECTED_AUTHOR}" >&2
+            exit 1
+          fi
+
+          if [ "${#files[@]}" -ne 1 ] || [ "${files[0]:-}" != "CHANGELOG.md" ]; then
             echo "Refusing to auto-merge because the PR changes files other than CHANGELOG.md" >&2
             exit 1
           fi
 
-          head_sha="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json headRefOid --jq '.headRefOid')"
           if [ -z "${head_sha}" ]; then
             echo "Failed to resolve pull request head SHA" >&2
             exit 1
