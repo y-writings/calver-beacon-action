@@ -17,10 +17,10 @@
 - Delete `.github/workflows/changelog.yml`: remove the old workflow-run changelog generator so release-tag owns changelog PR creation.
 - Modify `docs/superpowers/specs/2026-05-18-release-changelog-automation-design.md`: no implementation changes are needed; keep it as the approved design record.
 
-The workflows will require these repository secrets:
+The workflows will require this repository variable and secret:
 
-- `RELEASE_APP_ID`: GitHub App ID.
-- `RELEASE_APP_PRIVATE_KEY`: GitHub App private key.
+- `RELEASE_PLEASE_APP_ID`: GitHub App ID repository variable.
+- `RELEASE_PLEASE_APP_PRIVATE_KEY`: GitHub App private key repository secret.
 
 The GitHub App installation must be granted `contents: write` and `pull_requests: write` for this repository.
 
@@ -57,12 +57,27 @@ jobs:
     name: Create weekly CalVer tag and changelog PR
     runs-on: ubuntu-latest
     steps:
+      - name: Validate GitHub App configuration
+        env:
+          APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "${APP_ID}" ]; then
+            echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
+            exit 1
+          fi
+
+          if [ -z "${PRIVATE_KEY}" ]; then
+            echo "Missing repository secret RELEASE_PLEASE_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+
       - name: Create GitHub App token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - name: Check out repository for local action and changelog generation
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -200,12 +215,27 @@ jobs:
       }}
     runs-on: ubuntu-latest
     steps:
+      - name: Validate GitHub App configuration
+        env:
+          APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "${APP_ID}" ]; then
+            echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
+            exit 1
+          fi
+
+          if [ -z "${PRIVATE_KEY}" ]; then
+            echo "Missing repository secret RELEASE_PLEASE_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+
       - name: Create GitHub App token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
 
       - name: Verify pull request changes only CHANGELOG.md
         env:
@@ -347,4 +377,4 @@ If no files changed after verification, do not create an empty commit.
 
 - Spec coverage: Task 1 implements release-time changelog generation from the tag action outputs and removes the old workflow-run generator. Task 2 implements the separate normal `pull_request` auto-merge workflow. Task 3 verifies the changelog automation does not use `pull_request_target`, GitHub App token usage, tag creation gating, tag-range wiring, file-set validation, and baseline package health.
 - Placeholder scan: The plan contains concrete file paths, complete workflow content, exact commands, and expected results. It contains no unresolved placeholders.
-- Type and name consistency: Workflow IDs are `app-token`, `calver-tag`, and `cliff-range`; later expressions reference those exact IDs. The automation branch is consistently `automation/update-changelog`. The repository secrets are consistently `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`.
+- Type and name consistency: Workflow IDs are `app-token`, `calver-tag`, and `cliff-range`; later expressions reference those exact IDs. The automation branch is consistently `automation/update-changelog`. The GitHub App config names are consistently `RELEASE_PLEASE_APP_ID` and `RELEASE_PLEASE_APP_PRIVATE_KEY`.
