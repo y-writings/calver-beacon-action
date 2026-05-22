@@ -1,4 +1,4 @@
-import * as core from '@actions/core';
+import { setOutput } from './core';
 
 export interface CommonOutputs {
   tag: string;
@@ -8,12 +8,12 @@ export interface CommonOutputs {
 }
 
 export function setCommonOutputs(outputs: CommonOutputs): void {
-  core.setOutput('tag', outputs.tag);
-  core.setOutput('target_sha', outputs.targetSha);
-  core.setOutput('previous_tag', outputs.previousTag);
-  core.setOutput('previous_tag_sha', outputs.previousTagSha);
+  setOutput('tag', outputs.tag);
+  setOutput('target_sha', outputs.targetSha);
+  setOutput('previous_tag', outputs.previousTag);
+  setOutput('previous_tag_sha', outputs.previousTagSha);
 }
 
 export function setCreatedOutput(created: boolean): void {
-  core.setOutput('created', created ? 'true' : 'false');
+  setOutput('created', created ? 'true' : 'false');
 }
