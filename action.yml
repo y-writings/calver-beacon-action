@@ -7,7 +7,7 @@ inputs:
     description: Branch ref to evaluate and tag, for example main or refs/heads/main.
     required: true
   calver_date:
-    description: Optional date override in YYYY.MM.DD format. Defaults to the current UTC date.
+    description: Optional date override in YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} format. Defaults to the current UTC date.
     required: false
   github_token:
     description: GitHub token used for remote ref lookup and tag creation.

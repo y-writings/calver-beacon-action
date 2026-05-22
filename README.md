@@ -15,7 +15,7 @@ The action creates canonical tags in the form `vYYYY.MM.DD`. It resolves `target
 | Name | Required | Description |
 | --- | --- | --- |
 | `target_ref` | Yes | Branch ref to evaluate and tag, for example `main` or `refs/heads/main`. |
-| `calver_date` | No | Optional date override in `YYYY.MM.DD` format. Defaults to the current UTC date. |
+| `calver_date` | No | Optional date override in `YYYY.MM.DD` or `YYYY.MM.DD-[A-Za-z0-9]{1,32}` format. Defaults to the current UTC date. |
 | `github_token` | No | GitHub token used for remote ref lookup and tag creation. Defaults to `${{ github.token }}`. |
 
 ## Outputs
@@ -39,7 +39,7 @@ on:
   workflow_dispatch:
     inputs:
       calver_date:
-        description: Optional YYYY.MM.DD override for manual recovery.
+        description: Optional YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} override for manual recovery.
         required: false
         type: string
 
@@ -60,9 +60,9 @@ jobs:
 
 ## Same-Day Manual Tags
 
-This action only creates canonical daily tags like `v2026.05.10`. For an extra release on the same day, create a manual tag with a unique suffix, such as `v2026.05.10-handmade-01`.
+This action creates canonical daily tags like `v2026.05.10` by default. For an extra release on the same day, pass `calver_date` with a short alphanumeric suffix, such as `2026.05.10-handmade01`; the action will create `v2026.05.10-handmade01`.
 
-Downstream release workflows may match tag prefixes such as `v2026.05.10` when they need to handle both the canonical tag and same-day manual tags.
+Suffixes must be 1 to 32 ASCII alphanumeric characters. Downstream release workflows may match tag prefixes such as `v2026.05.10` when they need to handle both the canonical tag and same-day manual tags.
 
 ## Local Development
 

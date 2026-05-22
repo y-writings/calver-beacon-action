@@ -1,6 +1,6 @@
 import { getInputs } from './action/inputs';
 import { setCommonOutputs, setCreatedOutput } from './action/outputs';
-import { buildCalverTag, resolveCalverDate, validateCalverDate } from './domain/calver';
+import { buildCalverTag, isCanonicalCalverTag, resolveCalverDate, validateCalverDate } from './domain/calver';
 import { shouldSkipTagCreation } from './domain/tag-policy';
 import { getApiContext } from './github/context';
 import { createLightweightTag, findLatestCalverTag, lookupTag, resolveTargetSha } from './github/refs';
@@ -39,7 +39,7 @@ export async function run(): Promise<void> {
     previousTagSha,
   });
 
-  if (shouldSkipTagCreation(previous, targetSha)) {
+  if (isCanonicalCalverTag(tag) && shouldSkipTagCreation(previous, targetSha)) {
     setCreatedOutput(false);
     return;
   }

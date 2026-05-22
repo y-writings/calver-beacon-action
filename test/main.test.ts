@@ -94,6 +94,41 @@ describe('run', () => {
     expect(outputMocks.setCreatedOutput).toHaveBeenCalledWith(false);
   });
 
+  it('creates a suffixed tag even when the latest canonical tag SHA equals target SHA', async () => {
+    inputMocks.getInputs.mockReturnValue({
+      calverDate: '2026.04.19-rc1',
+      githubToken: 'token-value',
+      targetRef: 'main',
+    });
+    refMocks.findLatestCalverTag.mockResolvedValue({
+      exists: true,
+      ref: 'refs/tags/v2026.04.12',
+      tag: 'v2026.04.12',
+      sha: 'target-sha',
+    });
+    refMocks.lookupTag.mockResolvedValue({
+      exists: false,
+      ref: 'refs/tags/v2026.04.19-rc1',
+    });
+    refMocks.createLightweightTag.mockResolvedValue({
+      created: true,
+      ref: 'refs/tags/v2026.04.19-rc1',
+      sha: 'target-sha',
+    });
+
+    await run();
+
+    expect(outputMocks.setCommonOutputs).toHaveBeenCalledWith({
+      tag: 'v2026.04.19-rc1',
+      targetSha: 'target-sha',
+      previousTag: 'v2026.04.12',
+      previousTagSha: 'target-sha',
+    });
+    expect(refMocks.lookupTag).toHaveBeenCalledWith({ token: 'token-value' }, 'v2026.04.19-rc1');
+    expect(refMocks.createLightweightTag).toHaveBeenCalledWith({ token: 'token-value' }, 'v2026.04.19-rc1', 'target-sha');
+    expect(outputMocks.setCreatedOutput).toHaveBeenCalledWith(true);
+  });
+
   it('creates when no previous CalVer tag exists', async () => {
     refMocks.findLatestCalverTag.mockResolvedValue({ exists: false });
 
