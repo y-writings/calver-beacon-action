@@ -1,8 +1,8 @@
 {
-  "name": "snapshot-tag-action",
+  "name": "calver-beacon-action",
   "version": "1.0.0",
   "private": true,
-  "description": "Reusable GitHub Action for deriving weekly snapshot tags.",
+  "description": "Reusable GitHub Action for creating CalVer release-trigger tags.",
   "main": "dist/index.js",
   "scripts": {
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true});\"",
@@ -14,7 +14,7 @@
   "keywords": [
     "github-actions",
     "git-tag",
-    "snapshot"
+    "calver"
   ],
   "author": "Yoshiro M",
   "license": "MIT",

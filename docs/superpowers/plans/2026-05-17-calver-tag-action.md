@@ -615,7 +615,7 @@ git commit -m "feat: create calver tags when branch changed"
 Replace `action.yml` inputs and outputs with:
 
 ```yaml
-name: Snapshot Tag Action
+name: CalVer Beacon Action
 description: Create scheduled CalVer release-trigger tags when a target branch changed since the previous CalVer tag.
 author: y-writings
 

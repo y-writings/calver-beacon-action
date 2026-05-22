@@ -1,6 +1,6 @@
 [remote.github]
 owner = "y-writings"
-repo = "snapshot-tag-action"
+repo = "calver-beacon-action"
 
 [changelog]
 # Keep the generated file straightforward and readable in the repository.

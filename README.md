@@ -1,4 +1,4 @@
-# snapshot-tag-action
+# calver-beacon-action
 
 Create scheduled CalVer release-trigger tags for repositories that publish only when a target branch changed since the previous CalVer tag.
 
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: calver-tag
-        uses: y-writings/snapshot-tag-action@v1
+        uses: y-writings/calver-beacon-action@v1
         with:
           target_ref: main
           calver_date: ${{ inputs.calver_date }}

@@ -22,7 +22,7 @@ The workflow will:
 
 - Check out `main` with full history and tags.
 - Generate a GitHub App token with the minimum permissions needed for tag and pull request automation.
-- Run the local snapshot tag action with `target_ref: main` and the GitHub App token.
+- Run the local CalVer beacon action with `target_ref: main` and the GitHub App token.
 - If the action creates a new tag, run `git-cliff` against the range from `previous_tag` to the new `tag`.
 - Write the generated content to `CHANGELOG.md`.
 - Create or update a dedicated changelog pull request with `peter-evans/create-pull-request`.
@@ -44,7 +44,7 @@ The auto-merge job should not check out or execute pull request code. It can use
 
 ## Data Flow
 
-`snapshot-tag-action` provides these outputs:
+`calver-beacon-action` provides these outputs:
 
 - `tag`: the new CalVer tag, for example `v2026.05.18`.
 - `created`: whether the tag was created during the run.
@@ -110,4 +110,4 @@ Runtime verification should cover a manual `workflow_dispatch` run in a controll
 - Publishing GitHub Releases.
 - Generating changelogs from pull request head code.
 - Auto-merging arbitrary automation pull requests.
-- Changing the snapshot tag action's tag selection semantics.
+- Changing the CalVer beacon action's tag selection semantics.
