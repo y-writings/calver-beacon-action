@@ -4,7 +4,7 @@ const coreMocks = vi.hoisted(() => ({
   setOutput: vi.fn<(name: string, value: string) => void>(),
 }));
 
-vi.mock('@actions/core', () => coreMocks);
+vi.mock('../src/action/core', () => coreMocks);
 
 import { setCommonOutputs, setCreatedOutput } from '../src/action/outputs';
 

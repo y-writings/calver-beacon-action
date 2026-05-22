@@ -4,7 +4,7 @@ const coreMocks = vi.hoisted(() => ({
   getInput: vi.fn<(name: string) => string>(),
 }));
 
-vi.mock('@actions/core', () => coreMocks);
+vi.mock('../src/action/core', () => coreMocks);
 
 import { getInputs } from '../src/action/inputs';
 

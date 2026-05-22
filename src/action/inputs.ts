@@ -1,4 +1,4 @@
-import * as core from '@actions/core';
+import { getInput } from './core';
 
 export interface ActionInputs {
   calverDate: string | undefined;
@@ -7,9 +7,9 @@ export interface ActionInputs {
 }
 
 export function getInputs(): ActionInputs {
-  const calverDate = core.getInput('calver_date').trim();
-  const githubToken = core.getInput('github_token').trim();
-  const targetRef = core.getInput('target_ref').trim();
+  const calverDate = getInput('calver_date').trim();
+  const githubToken = getInput('github_token').trim();
+  const targetRef = getInput('target_ref').trim();
 
   return {
     calverDate: calverDate === '' ? undefined : calverDate,
