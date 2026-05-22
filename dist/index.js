@@ -19423,7 +19423,7 @@ async function run() {
     previousTag,
     previousTagSha
   });
-  if (shouldSkipTagCreation(previous, targetSha)) {
+  if (isCanonicalCalverTag(tag) && shouldSkipTagCreation(previous, targetSha)) {
     setCreatedOutput(false);
     return;
   }
