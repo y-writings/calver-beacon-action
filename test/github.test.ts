@@ -17,7 +17,7 @@ describe('GitHub API helpers', () => {
   const originalRepository = process.env.GITHUB_REPOSITORY;
 
   beforeEach(() => {
-    process.env.GITHUB_REPOSITORY = 'y-writings/snapshot-tag-action';
+    process.env.GITHUB_REPOSITORY = 'y-writings/calver-beacon-action';
   });
 
   afterEach(() => {
@@ -32,7 +32,7 @@ describe('GitHub API helpers', () => {
     expect(context).toEqual({
       token: 'token-value',
       owner: 'y-writings',
-      repo: 'snapshot-tag-action',
+      repo: 'calver-beacon-action',
       apiBaseUrl: 'https://api.github.com',
     });
   });

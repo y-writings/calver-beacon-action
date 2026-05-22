@@ -528,7 +528,7 @@ export async function requestJson<T>(context: ApiContext, path: string, init?: R
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${context.token}`,
-      'User-Agent': 'snapshot-tag-action',
+      'User-Agent': 'calver-beacon-action',
       'X-GitHub-Api-Version': '2022-11-28',
       ...(init?.headers ?? {}),
     },

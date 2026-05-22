@@ -19245,7 +19245,7 @@ async function requestJson(context, path, init) {
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${context.token}`,
-      "User-Agent": "snapshot-tag-action",
+      "User-Agent": "calver-beacon-action",
       "X-GitHub-Api-Version": "2022-11-28",
       ...init?.headers ?? {}
     }

@@ -4,7 +4,7 @@
 
 **Goal:** Generate a tag-range `CHANGELOG.md` pull request after weekly CalVer tag creation and auto-merge only that changelog PR without using `pull_request_target`.
 
-**Architecture:** Move changelog generation into `.github/workflows/release-tag.yml` so it can consume the snapshot action's `tag`, `previous_tag`, and `created` outputs directly. Add a separate checkout-free `.github/workflows/auto-merge-changelog.yml` workflow that validates the PR file set and enables GitHub auto-merge with a GitHub App token. Remove the old standalone workflow-run changelog workflow to avoid duplicate PR creation.
+**Architecture:** Move changelog generation into `.github/workflows/release-tag.yml` so it can consume the CalVer beacon action's `tag`, `previous_tag`, and `created` outputs directly. Add a separate checkout-free `.github/workflows/auto-merge-changelog.yml` workflow that validates the PR file set and enables GitHub auto-merge with a GitHub App token. Remove the old standalone workflow-run changelog workflow to avoid duplicate PR creation.
 
 **Tech Stack:** GitHub Actions YAML, `actions/create-github-app-token`, `orhun/git-cliff-action`, `peter-evans/create-pull-request`, GitHub CLI.
 
