@@ -42,11 +42,7 @@ function getInput(name) {
   return (process.env[`INPUT_${name.replace(/ /g, "_").toUpperCase()}`] ?? "").trim();
 }
 function setOutput(name, value) {
-  if (process.env.GITHUB_OUTPUT !== void 0 && process.env.GITHUB_OUTPUT !== "") {
-    issueFileCommand("OUTPUT", prepareKeyValueMessage(name, value));
-    return;
-  }
-  issueCommand("set-output", { name }, value);
+  issueFileCommand("OUTPUT", prepareKeyValueMessage(name, value));
 }
 function setFailed(message) {
   process.exitCode = 1;

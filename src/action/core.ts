@@ -58,12 +58,7 @@ export function getInput(name: string): string {
 }
 
 export function setOutput(name: string, value: string): void {
-  if (process.env.GITHUB_OUTPUT !== undefined && process.env.GITHUB_OUTPUT !== '') {
-    issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
-    return;
-  }
-
-  issueCommand('set-output', { name }, value);
+  issueFileCommand('OUTPUT', prepareKeyValueMessage(name, value));
 }
 
 export function setFailed(message: string): void {

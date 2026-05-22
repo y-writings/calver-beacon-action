@@ -44,12 +44,12 @@ describe('action core helpers', () => {
     }
   });
 
-  it('writes escaped legacy output commands when GITHUB_OUTPUT is unavailable', () => {
+  it('fails clearly when GITHUB_OUTPUT is unavailable', () => {
     delete process.env.GITHUB_OUTPUT;
 
-    setOutput('tag', 'v2026.05.23%0A');
-
-    expect(stdoutWriteSpy).toHaveBeenCalledWith('::set-output name=tag::v2026.05.23%250A\n');
+    expect(() => setOutput('tag', 'v2026.05.23')).toThrow(
+      'Unable to find environment variable for file command OUTPUT',
+    );
   });
 
   it('marks the action failed and emits an escaped error command', () => {
