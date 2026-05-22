@@ -27,6 +27,15 @@ describe('CalVer tag helpers', () => {
     expect(buildCalverTag('2026.04.19')).toBe('v2026.04.19');
   });
 
+  it('builds a CalVer tag with an alphanumeric suffix', () => {
+    expect(buildCalverTag('2026.04.19-rc1')).toBe('v2026.04.19-rc1');
+  });
+
+  it('accepts alphanumeric suffixes up to 32 characters', () => {
+    expect(() => validateCalverDate('2026.04.19-a')).not.toThrow();
+    expect(() => validateCalverDate('2026.04.19-ABCDEFGHIJKLMNOPQRSTUVWXYZ123456')).not.toThrow();
+  });
+
   it('identifies canonical CalVer tags', () => {
     expect(isCanonicalCalverTag('v2026.04.19')).toBe(true);
     expect(isCanonicalCalverTag('v2026.04.19-handmade-01')).toBe(false);
@@ -36,8 +45,19 @@ describe('CalVer tag helpers', () => {
   });
 
   it('rejects non-canonical CalVer dates', () => {
-    expect(() => validateCalverDate('2026-04-19')).toThrow('calver_date must use YYYY.MM.DD format');
-    expect(() => validateCalverDate('2026.4.19')).toThrow('calver_date must use YYYY.MM.DD format');
+    const formatError = 'calver_date must use YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} format';
+
+    expect(() => validateCalverDate('2026-04-19')).toThrow(formatError);
+    expect(() => validateCalverDate('2026.4.19')).toThrow(formatError);
+  });
+
+  it('rejects malformed CalVer date suffixes', () => {
+    const formatError = 'calver_date must use YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} format';
+
+    expect(() => validateCalverDate('2026.04.19-')).toThrow(formatError);
+    expect(() => validateCalverDate('2026.04.19-rc.1')).toThrow(formatError);
+    expect(() => validateCalverDate('2026.04.19-rc-1')).toThrow(formatError);
+    expect(() => validateCalverDate('2026.04.19-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567')).toThrow(formatError);
   });
 
   it('rejects impossible calendar dates', () => {

@@ -1,5 +1,5 @@
 const CANONICAL_CALVER_TAG_PATTERN = /^v\d{4}\.\d{2}\.\d{2}$/;
-const CALVER_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
+const CALVER_INPUT_PATTERN = /^(\d{4}\.\d{2}\.\d{2})(?:-[A-Za-z0-9]{1,32})?$/;
 
 function parseCalverDateParts(calverDate: string): { year: number; month: number; day: number } {
   const [yearText, monthText, dayText] = calverDate.split('.');
@@ -40,11 +40,14 @@ export function resolveCalverDate(calverDate: string | undefined, now: Date = ne
 }
 
 export function validateCalverDate(calverDate: string): void {
-  if (!CALVER_DATE_PATTERN.test(calverDate)) {
-    throw new Error('calver_date must use YYYY.MM.DD format');
+  const match = CALVER_INPUT_PATTERN.exec(calverDate);
+
+  if (match === null) {
+    throw new Error('calver_date must use YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} format');
   }
 
-  const { year, month, day } = parseCalverDateParts(calverDate);
+  const [, datePart] = match;
+  const { year, month, day } = parseCalverDateParts(datePart);
 
   if (!isValidCalendarDate(year, month, day)) {
     throw new Error('calver_date must be a real calendar date in YYYY.MM.DD format');
