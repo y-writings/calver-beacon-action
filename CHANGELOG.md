@@ -2,6 +2,26 @@
 
 All notable weekly snapshots of this project are documented in this file.
 
+## v2026.05.23
+
+
+
+### CI
+
+- Simplify release workflows (#20)
+
+- Rename pull request creator app config (#21)
+
+- Unify changelog auto-merge workflow (#22)
+
+
+
+### Documentation
+
+- **changelog:** Update changelog (#19)
+
+
+
 ## v2025.05.23-handmade
 
 
