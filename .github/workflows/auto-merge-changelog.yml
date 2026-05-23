@@ -28,34 +28,12 @@ jobs:
       }}
     runs-on: ubuntu-latest
     steps:
-      - name: Validate GitHub App configuration
+      - name: Validate changelog approver app
         env:
           APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
           APPROVER_APP_ID: ${{ vars.CHANGELOG_APPROVER_APP_ID }}
-          APPROVER_PRIVATE_KEY: ${{ secrets.CHANGELOG_APPROVER_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "${APP_ID}" ]; then
-            echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
-            exit 1
-          fi
-
-          if [ -z "${PRIVATE_KEY}" ]; then
-            echo "Missing repository secret RELEASE_PLEASE_APP_PRIVATE_KEY" >&2
-            exit 1
-          fi
-
-          if [ -z "${APPROVER_APP_ID}" ]; then
-            echo "Missing repository variable CHANGELOG_APPROVER_APP_ID" >&2
-            exit 1
-          fi
-
-          if [ -z "${APPROVER_PRIVATE_KEY}" ]; then
-            echo "Missing repository secret CHANGELOG_APPROVER_APP_PRIVATE_KEY" >&2
-            exit 1
-          fi
-
-          if [ "${APP_ID}" = "${APPROVER_APP_ID}" ]; then
+          if [ -n "${APP_ID}" ] && [ -n "${APPROVER_APP_ID}" ] && [ "${APP_ID}" = "${APPROVER_APP_ID}" ]; then
             echo "CHANGELOG_APPROVER_APP_ID must be different from RELEASE_PLEASE_APP_ID" >&2
             exit 1
           fi
