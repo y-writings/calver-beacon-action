@@ -1,4 +1,4 @@
-name: weekly-changelog-merge
+name: weekly-changelog-update
 
 on:
   schedule:
@@ -15,12 +15,12 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: weekly-changelog-merge-main
+  group: weekly-changelog-update-main
   cancel-in-progress: false
 
 jobs:
-  create-changelog-merge-pr:
-    name: Create weekly changelog PR and enable merge
+  update-changelog:
+    name: Update weekly changelog and enable auto-merge
     runs-on: ubuntu-latest
     steps:
       - name: Create pull request creator GitHub App token
