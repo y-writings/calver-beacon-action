@@ -19,8 +19,8 @@
 
 The workflows will require this repository variable and secret:
 
-- `RELEASE_PLEASE_APP_ID`: GitHub App ID repository variable.
-- `RELEASE_PLEASE_APP_PRIVATE_KEY`: GitHub App private key repository secret.
+- `PULL_REQUEST_CREATOR_APP_ID`: GitHub App ID repository variable.
+- `PULL_REQUEST_CREATOR_APP_PRIVATE_KEY`: GitHub App private key repository secret.
 
 The GitHub App installation must be granted `contents: write` and `pull_requests: write` for this repository.
 
@@ -59,25 +59,25 @@ jobs:
     steps:
       - name: Validate GitHub App configuration
         env:
-          APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          PULL_REQUEST_CREATOR_APP_ID: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          PULL_REQUEST_CREATOR_APP_PRIVATE_KEY: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "${APP_ID}" ]; then
-            echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
+          if [ -z "${PULL_REQUEST_CREATOR_APP_ID}" ]; then
+            echo "Missing repository variable PULL_REQUEST_CREATOR_APP_ID" >&2
             exit 1
           fi
 
-          if [ -z "${PRIVATE_KEY}" ]; then
-            echo "Missing repository secret RELEASE_PLEASE_APP_PRIVATE_KEY" >&2
+          if [ -z "${PULL_REQUEST_CREATOR_APP_PRIVATE_KEY}" ]; then
+            echo "Missing repository secret PULL_REQUEST_CREATOR_APP_PRIVATE_KEY" >&2
             exit 1
           fi
 
-      - name: Create GitHub App token
-        id: app-token
+      - name: Create pull request creator GitHub App token
+        id: pr-creator-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          private-key: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
 
       - name: Check out repository for local action and changelog generation
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -85,7 +85,7 @@ jobs:
           ref: main
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Create weekly CalVer tag through GitHub API
         id: calver-tag
@@ -93,7 +93,7 @@ jobs:
         with:
           calver_date: ${{ inputs.calver_date }}
           target_ref: main
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Report CalVer tag result
         env:
@@ -123,13 +123,13 @@ jobs:
         with:
           config: cliff.toml
           args: --verbose --tag ${{ steps.calver-tag.outputs.tag }} --output CHANGELOG.md ${{ steps.cliff-range.outputs.range }}
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Create or update changelog pull request
         if: ${{ steps.calver-tag.outputs.created == 'true' }}
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.pr-creator-token.outputs.token }}
           add-paths: |
             CHANGELOG.md
           author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
@@ -217,29 +217,29 @@ jobs:
     steps:
       - name: Validate GitHub App configuration
         env:
-          APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          PRIVATE_KEY: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          PULL_REQUEST_CREATOR_APP_ID: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          PULL_REQUEST_CREATOR_APP_PRIVATE_KEY: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
         run: |
-          if [ -z "${APP_ID}" ]; then
-            echo "Missing repository variable RELEASE_PLEASE_APP_ID" >&2
+          if [ -z "${PULL_REQUEST_CREATOR_APP_ID}" ]; then
+            echo "Missing repository variable PULL_REQUEST_CREATOR_APP_ID" >&2
             exit 1
           fi
 
-          if [ -z "${PRIVATE_KEY}" ]; then
-            echo "Missing repository secret RELEASE_PLEASE_APP_PRIVATE_KEY" >&2
+          if [ -z "${PULL_REQUEST_CREATOR_APP_PRIVATE_KEY}" ]; then
+            echo "Missing repository secret PULL_REQUEST_CREATOR_APP_PRIVATE_KEY" >&2
             exit 1
           fi
 
-      - name: Create GitHub App token
-        id: app-token
+      - name: Create pull request creator GitHub App token
+        id: pr-creator-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          private-key: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
 
       - name: Verify pull request changes only CHANGELOG.md
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.pr-creator-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -253,7 +253,7 @@ jobs:
 
       - name: Enable auto-merge
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.pr-creator-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
         run: gh pr merge "${PR_NUMBER}" --repo "${REPOSITORY}" --squash --auto --delete-branch
@@ -307,7 +307,7 @@ Expected: command exits with status 0.
 Run:
 
 ```bash
-grep -q 'github_token: ${{ steps.app-token.outputs.token }}' .github/workflows/release-tag.yml && grep -q 'token: ${{ steps.app-token.outputs.token }}' .github/workflows/release-tag.yml
+grep -q 'github_token: ${{ steps.pr-creator-token.outputs.token }}' .github/workflows/release-tag.yml && grep -q 'token: ${{ steps.pr-creator-token.outputs.token }}' .github/workflows/release-tag.yml
 ```
 
 Expected: command exits with status 0.
@@ -377,4 +377,4 @@ If no files changed after verification, do not create an empty commit.
 
 - Spec coverage: Task 1 implements release-time changelog generation from the tag action outputs and removes the old workflow-run generator. Task 2 implements the separate normal `pull_request` auto-merge workflow. Task 3 verifies the changelog automation does not use `pull_request_target`, GitHub App token usage, tag creation gating, tag-range wiring, file-set validation, and baseline package health.
 - Placeholder scan: The plan contains concrete file paths, complete workflow content, exact commands, and expected results. It contains no unresolved placeholders.
-- Type and name consistency: Workflow IDs are `app-token`, `calver-tag`, and `cliff-range`; later expressions reference those exact IDs. The automation branch is consistently `automation/update-changelog`. The GitHub App config names are consistently `RELEASE_PLEASE_APP_ID` and `RELEASE_PLEASE_APP_PRIVATE_KEY`.
+- Type and name consistency: Workflow IDs are `pr-creator-token`, `calver-tag`, and `cliff-range`; later expressions reference those exact IDs. The automation branch is consistently `automation/update-changelog`. The GitHub App config names are consistently `PULL_REQUEST_CREATOR_APP_ID` and `PULL_REQUEST_CREATOR_APP_PRIVATE_KEY`.

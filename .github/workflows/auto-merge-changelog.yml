@@ -30,20 +30,22 @@ jobs:
     steps:
       - name: Validate changelog approver app
         env:
-          APP_ID: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          APPROVER_APP_ID: ${{ vars.CHANGELOG_APPROVER_APP_ID }}
+          PULL_REQUEST_CREATOR_APP_ID: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          CHANGELOG_APPROVER_APP_ID: ${{ vars.CHANGELOG_APPROVER_APP_ID }}
         run: |
-          if [ -n "${APP_ID}" ] && [ -n "${APPROVER_APP_ID}" ] && [ "${APP_ID}" = "${APPROVER_APP_ID}" ]; then
-            echo "CHANGELOG_APPROVER_APP_ID must be different from RELEASE_PLEASE_APP_ID" >&2
+          if [ -n "${PULL_REQUEST_CREATOR_APP_ID}" ] && \
+            [ -n "${CHANGELOG_APPROVER_APP_ID}" ] && \
+            [ "${PULL_REQUEST_CREATOR_APP_ID}" = "${CHANGELOG_APPROVER_APP_ID}" ]; then
+            echo "CHANGELOG_APPROVER_APP_ID must be different from PULL_REQUEST_CREATOR_APP_ID" >&2
             exit 1
           fi
 
-      - name: Create GitHub App token
-        id: app-token
+      - name: Create pull request creator GitHub App token
+        id: pr-creator-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          private-key: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
 
       - name: Create changelog approver GitHub App token
         id: approver-token
@@ -55,10 +57,10 @@ jobs:
       - name: Verify pull request changes only CHANGELOG.md
         id: verify-changes
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.pr-creator-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
-          EXPECTED_AUTHOR: app/y-writings-release-please-bot
+          EXPECTED_AUTHOR: app/y-writings-pr-creator-bot
         run: |
           pr_view="$(gh pr view "${PR_NUMBER}" --repo "${REPOSITORY}" --json author,files,headRefOid,id --jq '.id, .headRefOid, .author.login, (.files[].path)')"
           mapfile -t pr_lines <<< "${pr_view}"
@@ -107,7 +109,7 @@ jobs:
 
       - name: Enable auto-merge
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.pr-creator-token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ steps.verify-changes.outputs.head_sha }}
