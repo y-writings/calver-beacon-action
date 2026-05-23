@@ -22,12 +22,12 @@ jobs:
     name: Create weekly CalVer tag and changelog PR
     runs-on: ubuntu-latest
     steps:
-      - name: Create GitHub App token
-        id: app-token
+      - name: Create pull request creator GitHub App token
+        id: pr-creator-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
-          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PULL_REQUEST_CREATOR_APP_ID }}
+          private-key: ${{ secrets.PULL_REQUEST_CREATOR_APP_PRIVATE_KEY }}
 
       - name: Check out repository for local action and changelog generation
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -35,7 +35,7 @@ jobs:
           ref: main
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Create weekly CalVer tag through GitHub API
         id: calver-tag
@@ -43,7 +43,7 @@ jobs:
         with:
           calver_date: ${{ inputs.calver_date }}
           target_ref: main
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Prepare git-cliff inputs
         id: cliff-range
@@ -66,13 +66,13 @@ jobs:
         with:
           config: cliff.toml
           args: --verbose --tag ${{ steps.calver-tag.outputs.tag }} --output CHANGELOG.md ${{ steps.cliff-range.outputs.range }}
-          github_token: ${{ steps.app-token.outputs.token }}
+          github_token: ${{ steps.pr-creator-token.outputs.token }}
 
       - name: Create or update changelog pull request
         if: ${{ steps.calver-tag.outputs.created == 'true' }}
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.pr-creator-token.outputs.token }}
           add-paths: |
             CHANGELOG.md
           author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
