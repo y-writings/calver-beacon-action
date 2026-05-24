@@ -75,10 +75,12 @@ function setFailed(message) {
 function getInputs() {
     const calverDate = getInput('calver_date').trim();
     const githubToken = getInput('github_token').trim();
+    const tagPrefix = getInput('tag_prefix').trim();
     const targetRef = getInput('target_ref').trim();
     return {
         calverDate: calverDate === '' ? undefined : calverDate,
         githubToken,
+        tagPrefix: tagPrefix === '' ? 'v' : tagPrefix,
         targetRef: targetRef === '' ? undefined : targetRef,
     };
 }
@@ -96,8 +98,8 @@ function setCreatedOutput(created) {
 }
 
 ;// CONCATENATED MODULE: ./src/domain/calver.ts
-const CANONICAL_CALVER_TAG_PATTERN = /^v\d{4}\.\d{2}\.\d{2}$/;
 const CALVER_INPUT_PATTERN = /^(\d{4}\.\d{2}\.\d{2})(?:-[A-Za-z0-9]{1,32})?$/;
+const TAG_PREFIX_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 function parseCalverDateParts(calverDate) {
     const [yearText, monthText, dayText] = calverDate.split('.');
     return {
@@ -138,12 +140,19 @@ function validateCalverDate(calverDate) {
         throw new Error('calver_date must be a real calendar date in YYYY.MM.DD format');
     }
 }
-function buildCalverTag(calverDate) {
-    validateCalverDate(calverDate);
-    return `v${calverDate}`;
+function validateTagPrefix(tagPrefix) {
+    if (!TAG_PREFIX_PATTERN.test(tagPrefix)) {
+        throw new Error('tag_prefix must use 1 to 32 characters containing only ASCII letters, digits, hyphen, or underscore');
+    }
 }
-function isCanonicalCalverTag(tag) {
-    return CANONICAL_CALVER_TAG_PATTERN.test(tag);
+function buildCalverTag(calverDate, tagPrefix = 'v') {
+    validateCalverDate(calverDate);
+    validateTagPrefix(tagPrefix);
+    return `${tagPrefix}${calverDate}`;
+}
+function isCanonicalCalverTag(tag, tagPrefix = 'v') {
+    validateTagPrefix(tagPrefix);
+    return tag.startsWith(tagPrefix) && CALVER_INPUT_PATTERN.test(tag.slice(tagPrefix.length)) && !tag.slice(tagPrefix.length).includes('-');
 }
 
 ;// CONCATENATED MODULE: ./src/domain/tag-policy.ts
@@ -263,12 +272,12 @@ async function lookupTag(context, tag) {
         throw error;
     }
 }
-async function findLatestCalverTag(context) {
+async function findLatestCalverTag(context, tagPrefix = 'v') {
     try {
-        const response = await requestJson(context, `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`);
+        const response = await requestJson(context, `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/${encodeRefName(tagPrefix)}`);
         const latest = response
             .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
-            .filter(({ tag }) => isCanonicalCalverTag(tag))
+            .filter(({ tag }) => isCanonicalCalverTag(tag, tagPrefix))
             .sort((a, b) => b.tag.localeCompare(a.tag))[0];
         if (latest === undefined) {
             return { exists: false };
@@ -359,10 +368,11 @@ async function run() {
     }
     const targetRef = requireTargetRef(inputs.targetRef);
     validateCalverDate(calverDate);
-    const tag = buildCalverTag(calverDate);
+    validateTagPrefix(inputs.tagPrefix);
+    const tag = buildCalverTag(calverDate, inputs.tagPrefix);
     const apiContext = getApiContext(inputs.githubToken);
     const targetSha = await resolveTargetSha(apiContext, targetRef);
-    const previous = await findLatestCalverTag(apiContext);
+    const previous = await findLatestCalverTag(apiContext, inputs.tagPrefix);
     const previousTag = previous.exists ? previous.tag : '';
     const previousTagSha = previous.exists ? previous.sha : '';
     setCommonOutputs({
@@ -371,7 +381,7 @@ async function run() {
         previousTag,
         previousTagSha,
     });
-    if (isCanonicalCalverTag(tag) && shouldSkipTagCreation(previous, targetSha)) {
+    if (isCanonicalCalverTag(tag, inputs.tagPrefix) && shouldSkipTagCreation(previous, targetSha)) {
         setCreatedOutput(false);
         return;
     }

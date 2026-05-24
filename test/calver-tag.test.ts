@@ -6,6 +6,7 @@ import {
   isCanonicalCalverTag,
   resolveCalverDate,
   validateCalverDate,
+  validateTagPrefix,
 } from '../src/domain/calver';
 
 describe('CalVer tag helpers', () => {
@@ -27,6 +28,10 @@ describe('CalVer tag helpers', () => {
     expect(buildCalverTag('2026.04.19')).toBe('v2026.04.19');
   });
 
+  it('builds a CalVer tag with a custom prefix', () => {
+    expect(buildCalverTag('2026.04.19', 'app-')).toBe('app-2026.04.19');
+  });
+
   it('builds a CalVer tag with an alphanumeric suffix', () => {
     expect(buildCalverTag('2026.04.19-rc1')).toBe('v2026.04.19-rc1');
   });
@@ -42,6 +47,29 @@ describe('CalVer tag helpers', () => {
     expect(isCanonicalCalverTag('2026.04.19')).toBe(false);
     expect(isCanonicalCalverTag('v2026.4.19')).toBe(false);
     expect(isCanonicalCalverTag('v1')).toBe(false);
+  });
+
+  it('identifies canonical CalVer tags for a custom prefix', () => {
+    expect(isCanonicalCalverTag('app-2026.04.19', 'app-')).toBe(true);
+    expect(isCanonicalCalverTag('app-2026.04.19-rc1', 'app-')).toBe(false);
+    expect(isCanonicalCalverTag('v2026.04.19', 'app-')).toBe(false);
+  });
+
+  it('accepts safe tag prefixes', () => {
+    expect(() => validateTagPrefix('v')).not.toThrow();
+    expect(() => validateTagPrefix('app-')).not.toThrow();
+    expect(() => validateTagPrefix('service_1')).not.toThrow();
+    expect(() => validateTagPrefix('ABCDEFGHIJKLMNOPQRSTUVWXYZ123456')).not.toThrow();
+  });
+
+  it('rejects unsafe tag prefixes', () => {
+    const formatError = 'tag_prefix must use 1 to 32 characters containing only ASCII letters, digits, hyphen, or underscore';
+
+    expect(() => validateTagPrefix('')).toThrow(formatError);
+    expect(() => validateTagPrefix('app.')).toThrow(formatError);
+    expect(() => validateTagPrefix('app/')).toThrow(formatError);
+    expect(() => validateTagPrefix('app name')).toThrow(formatError);
+    expect(() => validateTagPrefix('ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567')).toThrow(formatError);
   });
 
   it('rejects non-canonical CalVer dates', () => {

@@ -1,5 +1,5 @@
-const CANONICAL_CALVER_TAG_PATTERN = /^v\d{4}\.\d{2}\.\d{2}$/;
 const CALVER_INPUT_PATTERN = /^(\d{4}\.\d{2}\.\d{2})(?:-[A-Za-z0-9]{1,32})?$/;
+const TAG_PREFIX_PATTERN = /^[A-Za-z0-9_-]{1,32}$/;
 
 function parseCalverDateParts(calverDate: string): { year: number; month: number; day: number } {
   const [yearText, monthText, dayText] = calverDate.split('.');
@@ -54,11 +54,19 @@ export function validateCalverDate(calverDate: string): void {
   }
 }
 
-export function buildCalverTag(calverDate: string): string {
-  validateCalverDate(calverDate);
-  return `v${calverDate}`;
+export function validateTagPrefix(tagPrefix: string): void {
+  if (!TAG_PREFIX_PATTERN.test(tagPrefix)) {
+    throw new Error('tag_prefix must use 1 to 32 characters containing only ASCII letters, digits, hyphen, or underscore');
+  }
 }
 
-export function isCanonicalCalverTag(tag: string): boolean {
-  return CANONICAL_CALVER_TAG_PATTERN.test(tag);
+export function buildCalverTag(calverDate: string, tagPrefix = 'v'): string {
+  validateCalverDate(calverDate);
+  validateTagPrefix(tagPrefix);
+  return `${tagPrefix}${calverDate}`;
+}
+
+export function isCanonicalCalverTag(tag: string, tagPrefix = 'v'): boolean {
+  validateTagPrefix(tagPrefix);
+  return tag.startsWith(tagPrefix) && CALVER_INPUT_PATTERN.test(tag.slice(tagPrefix.length)) && !tag.slice(tagPrefix.length).includes('-');
 }

@@ -35,6 +35,7 @@ describe('run', () => {
       calverDate: '2026.04.19',
       githubToken: 'token-value',
       targetRef: 'main',
+      tagPrefix: 'v',
     });
 
     contextMocks.getApiContext.mockReturnValue({ token: 'token-value' });
@@ -61,7 +62,7 @@ describe('run', () => {
 
     expect(contextMocks.getApiContext).toHaveBeenCalledWith('token-value');
     expect(refMocks.resolveTargetSha).toHaveBeenCalledWith({ token: 'token-value' }, 'main');
-    expect(refMocks.findLatestCalverTag).toHaveBeenCalledWith({ token: 'token-value' });
+    expect(refMocks.findLatestCalverTag).toHaveBeenCalledWith({ token: 'token-value' }, 'v');
     expect(outputMocks.setCommonOutputs).toHaveBeenCalledWith({
       tag: 'v2026.04.19',
       targetSha: 'target-sha',
@@ -99,6 +100,7 @@ describe('run', () => {
       calverDate: '2026.04.19-rc1',
       githubToken: 'token-value',
       targetRef: 'main',
+      tagPrefix: 'v',
     });
     refMocks.findLatestCalverTag.mockResolvedValue({
       exists: true,
@@ -162,6 +164,7 @@ describe('run', () => {
       calverDate: '2026.04.19',
       githubToken: 'token-value',
       targetRef: undefined,
+      tagPrefix: 'v',
     });
 
     await expect(run()).rejects.toThrow('target_ref is required');
@@ -172,8 +175,75 @@ describe('run', () => {
       calverDate: '2026.04.19',
       githubToken: '',
       targetRef: 'main',
+      tagPrefix: 'v',
     });
 
     await expect(run()).rejects.toThrow('github_token is required');
+  });
+
+  it('creates a tag and searches previous tags with a custom prefix', async () => {
+    inputMocks.getInputs.mockReturnValue({
+      calverDate: '2026.04.19',
+      githubToken: 'token-value',
+      targetRef: 'main',
+      tagPrefix: 'app-',
+    });
+    refMocks.findLatestCalverTag.mockResolvedValue({
+      exists: true,
+      ref: 'refs/tags/app-2026.04.12',
+      tag: 'app-2026.04.12',
+      sha: 'previous-sha',
+    });
+    refMocks.lookupTag.mockResolvedValue({
+      exists: false,
+      ref: 'refs/tags/app-2026.04.19',
+    });
+    refMocks.createLightweightTag.mockResolvedValue({
+      created: true,
+      ref: 'refs/tags/app-2026.04.19',
+      sha: 'target-sha',
+    });
+
+    await run();
+
+    expect(refMocks.findLatestCalverTag).toHaveBeenCalledWith({ token: 'token-value' }, 'app-');
+    expect(outputMocks.setCommonOutputs).toHaveBeenCalledWith({
+      tag: 'app-2026.04.19',
+      targetSha: 'target-sha',
+      previousTag: 'app-2026.04.12',
+      previousTagSha: 'previous-sha',
+    });
+    expect(refMocks.lookupTag).toHaveBeenCalledWith({ token: 'token-value' }, 'app-2026.04.19');
+    expect(refMocks.createLightweightTag).toHaveBeenCalledWith({ token: 'token-value' }, 'app-2026.04.19', 'target-sha');
+  });
+
+  it('creates a suffixed tag with a custom prefix even when latest custom canonical tag SHA equals target SHA', async () => {
+    inputMocks.getInputs.mockReturnValue({
+      calverDate: '2026.04.19-rc1',
+      githubToken: 'token-value',
+      targetRef: 'main',
+      tagPrefix: 'app-',
+    });
+    refMocks.findLatestCalverTag.mockResolvedValue({
+      exists: true,
+      ref: 'refs/tags/app-2026.04.12',
+      tag: 'app-2026.04.12',
+      sha: 'target-sha',
+    });
+    refMocks.lookupTag.mockResolvedValue({
+      exists: false,
+      ref: 'refs/tags/app-2026.04.19-rc1',
+    });
+    refMocks.createLightweightTag.mockResolvedValue({
+      created: true,
+      ref: 'refs/tags/app-2026.04.19-rc1',
+      sha: 'target-sha',
+    });
+
+    await run();
+
+    expect(refMocks.lookupTag).toHaveBeenCalledWith({ token: 'token-value' }, 'app-2026.04.19-rc1');
+    expect(refMocks.createLightweightTag).toHaveBeenCalledWith({ token: 'token-value' }, 'app-2026.04.19-rc1', 'target-sha');
+    expect(outputMocks.setCreatedOutput).toHaveBeenCalledWith(true);
   });
 });
