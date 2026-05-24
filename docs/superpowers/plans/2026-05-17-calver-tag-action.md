@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing small TypeScript action structure, but rename snapshot-specific helpers and inputs to CalVer concepts. GitHub API helpers will own branch resolution, tag lookup, tag listing, tag dereferencing, and lightweight tag creation. `src/main.ts` will orchestrate input validation, latest-tag comparison, same-day conflict detection, tag creation, and outputs.
 
-**Tech Stack:** TypeScript, `@actions/core`, GitHub REST API via `fetch`, Vitest, esbuild, pnpm through mise.
+**Tech Stack:** TypeScript, `@actions/core`, GitHub REST API via `fetch`, Vitest, `@vercel/ncc`, pnpm through mise.
 
 ---
 
