@@ -9,6 +9,9 @@ inputs:
   calver_date:
     description: Optional date override in YYYY.MM.DD or YYYY.MM.DD-[A-Za-z0-9]{1,32} format. Defaults to the current UTC date.
     required: false
+  tag_prefix:
+    description: Optional tag prefix using 1 to 32 ASCII letters, digits, hyphen, or underscore. Defaults to v.
+    required: false
   github_token:
     description: GitHub token used for remote ref lookup and tag creation.
     required: false

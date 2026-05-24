@@ -148,6 +148,35 @@ describe('GitHub API helpers', () => {
     });
   });
 
+  it('finds the latest canonical CalVer tag for a custom prefix', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          [
+            { ref: 'refs/tags/app-2026.05.10-rc1', object: { type: 'commit', sha: 'ignored-manual' } },
+            { ref: 'refs/tags/app-2026.05.03', object: { type: 'commit', sha: 'old-sha' } },
+            { ref: 'refs/tags/app-2026.05.10', object: { type: 'commit', sha: 'latest-sha' } },
+            { ref: 'refs/tags/v2026.05.10', object: { type: 'commit', sha: 'ignored-prefix' } },
+          ],
+          { status: 200 },
+        ),
+      );
+
+    const context = getApiContext('token-value');
+
+    await expect(findLatestCalverTag(context, 'app-')).resolves.toEqual({
+      exists: true,
+      ref: 'refs/tags/app-2026.05.10',
+      tag: 'app-2026.05.10',
+      sha: 'latest-sha',
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/y-writings/calver-beacon-action/git/matching-refs/tags/app-',
+      expect.any(Object),
+    );
+  });
+
   it('returns a missing latest CalVer tag when no canonical tags exist', async () => {
     global.fetch = vi.fn().mockResolvedValue(
       jsonResponse(

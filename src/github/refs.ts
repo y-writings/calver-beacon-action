@@ -92,16 +92,16 @@ export async function lookupTag(context: ApiContext, tag: string): Promise<TagLo
   }
 }
 
-export async function findLatestCalverTag(context: ApiContext): Promise<LatestCalverTag> {
+export async function findLatestCalverTag(context: ApiContext, tagPrefix = 'v'): Promise<LatestCalverTag> {
   try {
     const response = await requestJson<GitRefListResponseItem[]>(
       context,
-      `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/v`,
+      `/repos/${context.owner}/${context.repo}/git/matching-refs/tags/${encodeRefName(tagPrefix)}`,
     );
 
     const latest = response
       .map(item => ({ item, tag: tagNameFromRef(item.ref) }))
-      .filter(({ tag }) => isCanonicalCalverTag(tag))
+      .filter(({ tag }) => isCanonicalCalverTag(tag, tagPrefix))
       .sort((a, b) => b.tag.localeCompare(a.tag))[0];
 
     if (latest === undefined) {

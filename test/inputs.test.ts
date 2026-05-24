@@ -13,7 +13,7 @@ describe('getInputs', () => {
     vi.clearAllMocks();
   });
 
-  it('trims calver_date, github_token, and target_ref inputs', () => {
+  it('trims calver_date, github_token, target_ref, and tag_prefix inputs', () => {
     coreMocks.getInput.mockImplementation((name: string) => {
       switch (name) {
         case 'calver_date':
@@ -22,6 +22,8 @@ describe('getInputs', () => {
           return '  token-value  ';
         case 'target_ref':
           return '  refs/heads/main  ';
+        case 'tag_prefix':
+          return '  app-  ';
         default:
           return '';
       }
@@ -31,10 +33,11 @@ describe('getInputs', () => {
       calverDate: '2026.04.19',
       githubToken: 'token-value',
       targetRef: 'refs/heads/main',
+      tagPrefix: 'app-',
     });
   });
 
-  it('normalizes empty calver_date and target_ref to undefined while keeping github_token as a string', () => {
+  it('normalizes empty calver_date and target_ref while defaulting empty tag_prefix to v', () => {
     coreMocks.getInput.mockImplementation((name: string) => {
       switch (name) {
         case 'calver_date':
@@ -42,6 +45,8 @@ describe('getInputs', () => {
         case 'github_token':
           return '   ';
         case 'target_ref':
+          return '   ';
+        case 'tag_prefix':
           return '   ';
         default:
           return '';
@@ -52,6 +57,7 @@ describe('getInputs', () => {
       calverDate: undefined,
       githubToken: '',
       targetRef: undefined,
+      tagPrefix: 'v',
     });
   });
 });
