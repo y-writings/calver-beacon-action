@@ -6,7 +6,7 @@
 
 **Architecture:** Keep `src/index.ts` as the entrypoint and `src/main.ts` as the orchestration boundary. Move pure CalVer and tag policy logic into `src/domain`, Action I/O into `src/action`, and GitHub REST transport/ref operations into focused files under `src/github`.
 
-**Tech Stack:** TypeScript, Node 24 GitHub Actions runtime, `@actions/core`, native `fetch`, Vitest, esbuild, pnpm.
+**Tech Stack:** TypeScript, Node 24 GitHub Actions runtime, `@actions/core`, native `fetch`, Vitest, `@vercel/ncc`, pnpm.
 
 ---
 

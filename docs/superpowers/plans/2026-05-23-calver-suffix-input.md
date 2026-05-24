@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the change inside the existing CalVer domain helper so `main.ts` and input trimming remain unchanged. Validation will capture the date portion, validate the optional suffix shape and length with one regex, then check the captured date as a real UTC calendar date.
 
-**Tech Stack:** TypeScript, Vitest, esbuild, GitHub Action metadata in `action.yml`, generated bundled output in `dist/index.js`.
+**Tech Stack:** TypeScript, Vitest, `@vercel/ncc`, GitHub Action metadata in `action.yml`, generated bundled output in `dist/index.js`.
 
 ---
 

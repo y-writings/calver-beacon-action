@@ -8,7 +8,7 @@
     "clean": "node -e \"const fs=require('node:fs'); fs.rmSync('dist',{recursive:true,force:true});\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "build": "pnpm run clean && esbuild src/index.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist/index.js",
+    "build": "pnpm run clean && ncc build src/index.ts -o dist --target es2024",
     "ci": "pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "keywords": [
@@ -27,7 +27,7 @@
   "packageManager": "pnpm@10.33.0",
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "esbuild": "^0.28.0",
+    "@vercel/ncc": "^0.38.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   }
